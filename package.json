@@ -1,0 +1,25 @@
+{
+    "name": "usof",
+    "version": "1.0.0",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js"
+    },
+    "dependencies": {
+        "express": "^5.1.0",
+        "mysql2": "^3.14.1"
+    },
+    "author": "Diana Malashta",
+    "license": "ISC",
+    "devDependencies": {},
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Teyvani/Usof.git"
+    },
+    "keywords": [],
+    "bugs": {
+        "url": "https://github.com/Teyvani/Usof/issues"
+    },
+    "homepage": "https://github.com/Teyvani/Usof#readme",
+    "description": ""
+}
