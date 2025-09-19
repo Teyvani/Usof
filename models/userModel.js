@@ -28,9 +28,9 @@ function findById(id, callback){
 
 /*Main functions*/
 
-function createUser({ login, full_name, password, email}, callback) {
-    const sql = 'INSERT INTO users (login, full_name, password, email) VALUES (?, ?, ?, ?)';
-    db.query(sql, [login, full_name, password, email], (err, results) => {callback(err, results);});
+function createUser({ login, full_name, password, email, email_confirmation_token }, callback) {
+    const sql = 'INSERT INTO users (login, full_name, password, email, email_confirmation_token) VALUES (?, ?, ?, ?, ?)';
+    db.query(sql, [login, full_name, password, email, email_confirmation_token], (err, results) => {callback(err, results);});
 }
 
 function updateUser(id, fields, callback) {

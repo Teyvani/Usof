@@ -1,5 +1,5 @@
 const express = require('express');
-const authRoutes = require('./routes/auth.js');
+const mainRouter = require('./routes/mainRouter.js');
 
 const PORT = process.env.PORT || 3000;
 
@@ -7,9 +7,6 @@ const app = express();
 
 app.use(express.json());
 
-app.get('/', (req, res) => {
-    res.send('Hello World!');
-});
-
+app.use('/', mainRouter);
 
 app.listen(PORT, () => {console.log(`Server is running on http://localhost:${PORT}`);});
