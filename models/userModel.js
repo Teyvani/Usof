@@ -1,6 +1,14 @@
-const db = require('./db.js');
+const db = require('../db.js');
 
 /*Finders*/
+
+function findByToken(token, callback) {
+    const sql = 'SELECT * FROM users WHERE email_confirmation_token = ?';
+    db.query(sql, [token], (err, results) => {
+        if (err) return callback(err);
+        callback(null, results[0]);
+    });
+}
 
 function findByLogin(login, callback){
     const sql = 'SELECT * FROM users WHERE login = ?';
@@ -85,4 +93,4 @@ function getAllUsers(callback) {
     });
 }
 
-module.exports = {findByLogin, findByEmail, findById, createUser, updateUser, deleteUser, isEmailTaken, isLoginTaken, getAllUsers};
+module.exports = {findByToken, findByLogin, findByEmail, findById, createUser, updateUser, deleteUser, isEmailTaken, isLoginTaken, getAllUsers};

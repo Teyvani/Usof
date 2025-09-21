@@ -30,3 +30,13 @@ function registerErrorHandler(req, res, next) {
     }
     next();
 }
+
+function loginErrorHandler(req, res, next) {
+    const { login, email, password } = req.body;
+    if ((!login && !email) || !password) {
+        return res.status(400).send('Login or email and password are required.');
+    }
+    next();
+}
+
+module.exports = {registerErrorHandler, loginErrorHandler};
