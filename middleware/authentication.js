@@ -39,4 +39,15 @@ function loginErrorHandler(req, res, next) {
     next();
 }
 
-module.exports = {registerErrorHandler, loginErrorHandler};
+function passwordResetErrorHandler(req, res, next) {
+    const { token, password, confirm_password } = req.body;
+    if (!token || !password || !confirm_password) {
+        return res.status(400).send('Token and new password are required.');
+    }
+    if (password !== confirm_password) {
+        return res.status(400).send('Passwords do not match.');
+    }
+    next();
+}
+
+module.exports = {registerErrorHandler, loginErrorHandler, passwordResetErrorHandler};

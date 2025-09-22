@@ -2,7 +2,7 @@ const db = require('../db.js');
 
 /*Finders*/
 
-function findByToken(token, callback) {
+function findByEmailToken(token, callback) {
     const sql = 'SELECT * FROM users WHERE email_confirmation_token = ?';
     db.query(sql, [token], (err, results) => {
         if (err) return callback(err);
@@ -29,6 +29,14 @@ function findByEmail(email, callback){
 function findById(id, callback){
     const sql = 'SELECT * FROM users WHERE id =?';
     db.query(sql, [id], (err, results) => {
+        if (err) return callback(err);
+        callback(null, results[0]);
+    });
+}
+
+function findByResetToken(token, callback) {
+    const sql = 'SELECT * FROM users WHERE password_reset_token = ?';
+    db.query(sql, [token], (err, results) => {
         if (err) return callback(err);
         callback(null, results[0]);
     });
@@ -93,4 +101,4 @@ function getAllUsers(callback) {
     });
 }
 
-module.exports = {findByToken, findByLogin, findByEmail, findById, createUser, updateUser, deleteUser, isEmailTaken, isLoginTaken, getAllUsers};
+module.exports = {findByEmailToken, findByLogin, findByEmail, findById, findByResetToken, createUser, updateUser, deleteUser, isEmailTaken, isLoginTaken, getAllUsers};

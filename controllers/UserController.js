@@ -1,7 +1,15 @@
 const userModel = require('../models/userModel.js');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcrypt');
-const session = require('express-session');
+const crypto = require('crypto');
+
+const transponter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'diana.malashta17@gmail.com',
+        pass: 'owma rjgp mjao rfeh'
+    }
+});
 
 exports.register = async (req, res) => {
     const { login, full_name, password, email } = req.body;
@@ -18,26 +26,17 @@ exports.register = async (req, res) => {
                 try {
                     const salt = await bcrypt.genSalt(10);
                     const hash = await bcrypt.hash(password, salt);
-                    const crypto = require('crypto');
                     const token = crypto.randomBytes(32).toString('hex');
 
                     userModel.createUser({ login, full_name, password: hash, email, email_confirmation_token: token }, (err) => {
                         if (err) return res.status(500).send('Failed to register user.');
-
-                        const transponter = nodemailer.createTransport({
-                            service: 'gmail',
-                            auth: {
-                                user: 'diana.malashta17@gmail.com',
-                                pass: 'owma rjgp mjao rfeh'
-                            }
-                        });
 
                         (async () => {
                             const info = await transponter.sendMail({
                                 from: '"Usof" <diana.malashta17@gmail.com>',
                                 to: email,
                                 subject: 'Підтвердження реєстрації',
-                                text: 'Для підтвердження реєстрації перейдіть за посиланням: http://localhost:3000/confirm-email?token=' + token
+                                text: 'Для підтвердження реєстрації перейдіть за посиланням: http://localhost:3000/api/auth/confirm-email?token=' + token
                             });
                             console.log('Message sent: %s', info.messageId);
                         })();
@@ -56,12 +55,38 @@ exports.register = async (req, res) => {
     }
 };
 
+exports.sendEmailTokenAgain = async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).send('Email is required.');
+    userModel.findByEmail(email, async (err, user) => {
+        if (err) return res.status(500).send('Database error.');
+        if (!user) return res.status(400).send('User not found.');
+        if (user.email_confirmed) return res.status(400).send('Email already confirmed.');
+
+        const token = crypto.randomBytes(32).toString('hex');
+        userModel.updateUser(user.id, { email_confirmation_token: token }, (err) => {
+            if (err) return res.status(500).send('Failed to set confirmation token.');
+
+            (async () => {
+                const info = await transponter.sendMail({
+                    from: '"Usof" <diana.malashta17@gmail.com>',
+                    to: email,
+                    subject: 'Повторне повідомлення підтвердження реєстрації',
+                    text: 'Для підтвердження реєстрації перейдіть за посиланням: http://localhost:3000/api/auth/confirm-email?token=' + token
+                });
+                console.log('Message sent: %s', info.messageId);
+            })();
+            return res.status(200).send('Confirmation send again');
+        });
+    });
+};
+
 exports.confirmEmail = async (req, res) => {
     const token = req.query.token;
     if (!token) return res.status(400).send('Token is required.');
 
     try {
-        userModel.findByToken(token, (err, user) => {
+        userModel.findByEmailToken(token, (err, user) => {
             if (err) return res.status(500).send('Database error.');
             if (!user) return res.status(400).send('Invalid token or email already confirmed.');
 
@@ -105,4 +130,89 @@ exports.logout = (req, res) => {
         if (err) return res.status(500).send('Failed to logout.');
         res.status(200).send('Logout successful.');
     });
+}
+
+exports.passwordResetRequest = async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).send('Email is required.');
+    userModel.findByEmail(email, async (err, user) => {
+        if (err) return res.status(500).send('Database error.');
+        if (!user) return res.status(400).send('User not found.');
+        const password_reset_token = crypto.randomBytes(32).toString('hex');
+        const password_reset_token_expiration = new Date(Date.now() + 1000 * 60 * 10); // 10 minutes
+        userModel.updateUser(user.id, { password_reset_token, password_reset_token_expiration }, (err) => {
+            if (err) return res.status(500).send('Failed to set reset token.');
+
+                (async () => {
+                    const info = await transponter.sendMail({
+                        from: '"Usof" <diana.malashta17@gmail.com>',
+                        to: email,
+                        subject: 'Підтвердження зміни пароля',
+                        text: 'Увага! Цей посилання буде дійсним протягом 10 хвилин. Для підтвердження зміни пароля перейдіть за посиланням: http://localhost:3000/api/auth/reset-password?token=' + password_reset_token
+                    });
+                    console.log('Message sent: %s', info.messageId);
+                })();
+            return res.status(200).send('Password reset email sent.');
+        });
+    });
+}
+
+exports.passwordResetConfirm = async (req, res) => {
+    const { token, password } = req.body;
+    try {
+        userModel.findByResetToken(token, async (err, user) => {
+            if (err) return res.status(500).send('Database error.');
+            if (!user) return res.status(400).send('Invalid or expired token.');
+
+            if (Date.now() > new Date(user.password_reset_token_expiration).getTime()) {
+                return res.status(400).send('Token expired.');
+            }
+
+            const salt = await bcrypt.genSalt(10);
+            const hash = await bcrypt.hash(password, salt);
+
+            userModel.updateUser(user.id, {
+                password: hash,
+                password_reset_token: null,
+                password_reset_token_expiration: null
+            }, (err) => {
+                if (err) return res.status(500).send('Failed to reset password.');
+                return res.status(200).send('Password has been reset successfully.');
+            });
+        });
+    } catch (error) {
+        console.error('Password reset confirm error:', error);
+        return res.status(500).send('Server error.');
+    }
+};
+
+exports.deleteUser = async (req, res) => {
+    const userId = req.params.id;
+    try {
+        userModel.deleteUser(userId, (err) =>{
+            if (err) return res.status(500).send('Failed to delete user.');
+        return res.status(200).send('User deleted successfully.');
+        });
+    } catch (error) {
+        console.error('Delete user error:', error);
+        return res.status(500).send('Server error.');
+    }
+};
+
+exports.updateUserRole = async (req, res) => {
+    const userId = req.params.id;
+
+    try {
+        userModel.findById(userId, (err, user) => {
+            if (err) return res.status(500).send('Database error.');
+            if (!user) return res.status(404).send('User not found.');
+            userModel.updateUser(userId, { role: 'admin' }, (err) => {
+                if (err) return res.status(500).send('Failed to update user role.');
+                return res.status(200).send('User role updated successfully.');
+            });
+        });
+    } catch (error) {
+        console.error('Update user role error:', error);
+        return res.status(500).send('Server error.');
+    }
 }

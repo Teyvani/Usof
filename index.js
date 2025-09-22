@@ -1,7 +1,6 @@
 /*Don't forget to:
-mysql -u root -p < usof_db.sql
+mysql -u root -p < usof_db.sql | перший запуск
 mysql -u admin -P 3306 -padminsecurepass
-npm innit -y
 npm install
 npm start*/
 
