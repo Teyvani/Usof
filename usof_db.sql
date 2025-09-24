@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
     email_confirmation_token VARCHAR(100) DEFAULT NULL,
     password_reset_token VARCHAR(100) DEFAULT NULL,
     password_reset_token_expiration DATETIME DEFAULT NULL,
-    profile_picture VARCHAR(255) DEFAULT NULL,
+    profile_picture VARCHAR(255) DEFAULT 'uploads/profiles/default_avatar.jpg',
     rating INT DEFAULT 0,
     role ENUM('user', 'admin') DEFAULT 'user',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(100) NOT NULL UNIQUE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
+ 
 CREATE TABLE IF NOT EXISTS post_categories (
     post_id INT NOT NULL,
     category_id  INT NOT NULL,

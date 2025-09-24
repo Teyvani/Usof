@@ -3,7 +3,7 @@ const nodemailer = require('nodemailer');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 
-const transponter = nodemailer.createTransport({
+const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: 'diana.malashta17@gmail.com',
@@ -32,7 +32,7 @@ exports.register = async (req, res) => {
                         if (err) return res.status(500).send('Failed to register user.');
 
                         (async () => {
-                            const info = await transponter.sendMail({
+                            const info = await transporter.sendMail({
                                 from: '"Usof" <diana.malashta17@gmail.com>',
                                 to: email,
                                 subject: 'Підтвердження реєстрації',
@@ -68,7 +68,7 @@ exports.sendEmailTokenAgain = async (req, res) => {
             if (err) return res.status(500).send('Failed to set confirmation token.');
 
             (async () => {
-                const info = await transponter.sendMail({
+                const info = await transporter.sendMail({
                     from: '"Usof" <diana.malashta17@gmail.com>',
                     to: email,
                     subject: 'Повторне повідомлення підтвердження реєстрації',
@@ -139,12 +139,12 @@ exports.passwordResetRequest = async (req, res) => {
         if (err) return res.status(500).send('Database error.');
         if (!user) return res.status(400).send('User not found.');
         const password_reset_token = crypto.randomBytes(32).toString('hex');
-        const password_reset_token_expiration = new Date(Date.now() + 1000 * 60 * 10); // 10 minutes
+        const password_reset_token_expiration = new Date(Date.now() + 1000 * 60 * 10).toISOString().slice(0, 19).replace('T', ' '); // 10 minutes
         userModel.updateUser(user.id, { password_reset_token, password_reset_token_expiration }, (err) => {
             if (err) return res.status(500).send('Failed to set reset token.');
 
                 (async () => {
-                    const info = await transponter.sendMail({
+                    const info = await transporter.sendMail({
                         from: '"Usof" <diana.malashta17@gmail.com>',
                         to: email,
                         subject: 'Підтвердження зміни пароля',
@@ -201,18 +201,51 @@ exports.deleteUser = async (req, res) => {
 
 exports.updateUserRole = async (req, res) => {
     const userId = req.params.id;
+    const { role } = req.body;
+    if (!['user', 'admin'].includes(role)) return res.status(400).send('Invalid role');
 
     try {
         userModel.findById(userId, (err, user) => {
             if (err) return res.status(500).send('Database error.');
             if (!user) return res.status(404).send('User not found.');
-            userModel.updateUser(userId, { role: 'admin' }, (err) => {
+            userModel.updateUser(userId, { role: role }, (err) => {
                 if (err) return res.status(500).send('Failed to update user role.');
                 return res.status(200).send('User role updated successfully.');
             });
         });
     } catch (error) {
         console.error('Update user role error:', error);
+        return res.status(500).send('Server error.');
+    }
+}
+
+exports.uploadAvatar = async (req, res) => {
+    if (!req.file) return res.status(400).send('No file uploaded');
+    const filePath = req.file.path;
+    
+    try {
+        userModel.updateUser(req.session.user.id, { profile_picture: filePath }, (err) => {
+            if (err) return res.status(500).send('Database error.');
+            if (!user) return res.status(404).send('User not found');
+            res.status(200).send({ message: 'Avatar updated successfully', path: filePath });
+        });
+    } catch (error) {
+        console.error('Upload avatar error:', error);
+        return res.status(500).send('Server error.');
+    }
+}
+
+exports.getAvatar = async (req, res) => {
+    const userId = req.params.id;
+
+    try {
+        userModel.findById(userId, (err, user) => {
+            if (err) return res.status(500).send('Database error.');
+            if (!user) return res.status(404).send('User not found');
+            res.status(200).send({imagePath: user.profile_picture});
+        });
+    } catch (error) {
+        console.error('Upload avatar error:', error);
         return res.status(500).send('Server error.');
     }
 }
