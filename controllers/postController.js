@@ -1,60 +1,43 @@
 const postModel = require('../models/postModel');
 
-exports.createPost = async (req, res) => {
+exports.createPost = (req, res) => {
     try {
         const author_id = req.session.user.id;
         const { title, content, categories } = req.body;
+        const imagePaths = req.files?.map(file => file.path) || [];
 
-        postModel.createPost({ author_id, title, content }, (err, result) => {
+        postModel.createPost({ author_id, title, content }, (err, results) => {
             if (err) {
                 console.error('Error creating post:', err);
-                return res.status(500).send({ error: 'Failed to create post.' });
+                return res.status(500).json({ error: 'Internal server error' });
             }
 
-            const postId = result.insertId;
-            let completedOperations = 0;
-            let totalOperations = 0;
-            let hasError = false;
-
-            const checkCompletion = () => {
-                completedOperations++;
-                if (completedOperations === totalOperations && !hasError) {
-                    return res.status(201).send({ message: 'Post created successfully', postId });
-                }
-            };
-
+            const postId = results.insertId;
             if (categories && categories.length > 0) {
-                totalOperations++;
                 postModel.addCategoriesToPost(postId, categories, (err) => {
-                    if (err && !hasError) {
-                        hasError = true;
-                        console.error('Error adding categories:', err);
-                        return res.status(500).send({ error: 'Post created but failed to add categories' });
-                    }
-                    checkCompletion();
+                    if (err) console.error('Error adding categories:', err);
                 });
             }
-
-            if (req.files && req.files.length > 0) {
-                totalOperations++;
-                const imagePaths = req.files.map(file => file.path);
+            if (imagePaths.length > 0) {
                 postModel.addImagesToPost(postId, imagePaths, (err) => {
-                    if (err && !hasError) {
-                        hasError = true;
-                        console.error('Error adding images:', err);
-                        return res.status(500).send({ error: 'Post created but failed to add images' });
-                    }
-                    checkCompletion();
+                    if (err) console.error('Error adding images:', err);
                 });
             }
 
-            if (totalOperations === 0) {
-                return res.status(201).send({ message: 'Post created successfully', postId });
-            }
-        });
+            postModel.getPostByID(postId, (err, newPost) => {
+                if (err) {
+                    console.error('Error fetching new post:', err);
+                    return res.status(500).json({ error: 'Internal server error' });
+                }
 
+                res.status(201).json({
+                    message: 'Post created successfully',
+                    post: newPost
+                });
+            });
+        });
     } catch (error) {
-        console.error('Unexpected error:', error);
-        return res.status(500).send({ error: 'Internal server error' });
+        console.error('Unexpected error creating post:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 };

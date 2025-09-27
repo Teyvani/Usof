@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
     email_confirmed BOOLEAN DEFAULT FALSE,
     email_confirmation_token VARCHAR(100) DEFAULT NULL,
     password_reset_token VARCHAR(100) DEFAULT NULL,
-    password_reset_token_expiration DATETIME DEFAULT NULL,
+    password_reset_token_expiration TIMESTAMP DEFAULT NULL,
     profile_picture VARCHAR(255) DEFAULT 'uploads/profiles/default_avatar.jpg',
     rating INT DEFAULT 0,
     role ENUM('user', 'admin') DEFAULT 'user',

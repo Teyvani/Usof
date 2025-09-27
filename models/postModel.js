@@ -1,7 +1,5 @@
 const db = require('../db.js');
 
-/* Main functions */
-
 function createPost({ author_id, title, content }, callback){
     const sql = 'INSERT INTO posts (author_id, title, content) VALUES (?, ?, ?)';
     db.query(sql, [author_id, title, content], (err, results) => {

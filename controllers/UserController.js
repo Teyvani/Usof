@@ -139,7 +139,9 @@ exports.passwordResetRequest = async (req, res) => {
         if (err) return res.status(500).send('Database error.');
         if (!user) return res.status(400).send('User not found.');
         const password_reset_token = crypto.randomBytes(32).toString('hex');
-        const password_reset_token_expiration = new Date(Date.now() + 1000 * 60 * 10).toISOString().slice(0, 19).replace('T', ' '); // 10 minutes
+        const expiration = new Date();
+        expiration.setMinutes(expiration.getMinutes() + 10); // 10 minutes
+        const password_reset_token_expiration = expiration;
         userModel.updateUser(user.id, { password_reset_token, password_reset_token_expiration }, (err) => {
             if (err) return res.status(500).send('Failed to set reset token.');
 
@@ -157,28 +159,48 @@ exports.passwordResetRequest = async (req, res) => {
     });
 }
 
+exports.passwordTokenPage = async (req, res) => {
+    const token = req.query.token;
+    if(!token) return res.status(400).send('Token required.');
+    return res.status(200).json({ message: "Put this request: /auth/reset-password and put this token in this request", token: token});
+}
+
 exports.passwordResetConfirm = async (req, res) => {
     const { token, password } = req.body;
+    if (!token || !password) {
+        return res.status(400).send('Token and password are required.');
+    }
+    
     try {
         userModel.findByResetToken(token, async (err, user) => {
             if (err) return res.status(500).send('Database error.');
-            if (!user) return res.status(400).send('Invalid or expired token.');
-
-            if (Date.now() > new Date(user.password_reset_token_expiration).getTime()) {
-                return res.status(400).send('Token expired.');
+            if (!user) return res.status(400).send('Invalid token.');
+            
+            if (new Date() > new Date(user.password_reset_token_expiration)) {
+                userModel.updateUser(user.id, {
+                    password_reset_token: null,
+                    password_reset_token_expiration: null
+                }, () => {});
+                
+                return res.status(400).send('Token has expired. Please request a new password reset.');
             }
 
-            const salt = await bcrypt.genSalt(10);
-            const hash = await bcrypt.hash(password, salt);
+            try {
+                const salt = await bcrypt.genSalt(10);
+                const hash = await bcrypt.hash(password, salt);
 
-            userModel.updateUser(user.id, {
-                password: hash,
-                password_reset_token: null,
-                password_reset_token_expiration: null
-            }, (err) => {
-                if (err) return res.status(500).send('Failed to reset password.');
-                return res.status(200).send('Password has been reset successfully.');
-            });
+                userModel.updateUser(user.id, {
+                    password: hash,
+                    password_reset_token: null,
+                    password_reset_token_expiration: null
+                }, (err) => {
+                    if (err) return res.status(500).send('Failed to reset password.');
+                    return res.status(200).send('Password has been reset successfully.');
+                });
+            } catch (hashError) {
+                console.error('Password hashing error:', hashError);
+                return res.status(500).send('Failed to process password.');
+            }
         });
     } catch (error) {
         console.error('Password reset confirm error:', error);
