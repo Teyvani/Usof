@@ -271,3 +271,222 @@ exports.getAvatar = async (req, res) => {
         return res.status(500).send('Server error.');
     }
 }
+
+exports.getAllUsers = (req, res) => {
+    try {
+        userModel.getAllUsers((err, users) => {
+            if (err) {
+                console.error('Error fetching users:', err);
+                return res.status(500).json({ error: 'Internal server error'});
+            }
+
+            const safeUsers = users.map(user => ({
+                id: user.id,
+                login: user.login,
+                full_name: user.full_name,
+                email: user.email,
+                email_confirmed: user.email_confirmed,
+                profile_picture: user.profile_picture,
+                rating: user.rating,
+                role: user.role,
+                created_at: user.created_at
+            }));
+
+            res.json({ users: safeUsers });
+        });
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+exports.getUserById = (req, res) => {
+    try {
+        const userId = req.params.user_id;
+
+        userModel.findById(userId, (err, user) => {
+            if (err) {
+                console.error('Error fetching user:', err);
+                return res.status(500).json({ error: 'Internal server error' });
+            }
+            if (!user) { return res.status(404).json({ error: 'User not found'});}
+
+            const safeUser = {
+                id: user.id,
+                login: user.login,
+                full_name: user.full_name,
+                email: user.email,
+                email_confirmed: user.email_confirmed,
+                profile_picture: user.profile_picture,
+                rating: user.rating,
+                role: user.role,
+                created_at: user.created_at
+            };
+
+            res.json({ user: safeUser });
+        });
+    } catch (error) {
+        console.error('Error fetching user:', error);
+        res.status(500).json({ error: 'Internal server error'});
+    }
+};
+
+exports.createUser = async (req, res) => {
+    try {
+        const { login, full_name, password, email, role } = req.body;
+        if (!login || !full_name || !password || !email) {
+            return res.status(400).json({ error: 'All fields are required' });
+        }
+        if (role && !['user', 'admin'].includes(role)) {
+            return res.status(400).json({ error: 'Invalid role' });
+        }
+
+        userModel.findByLogin(login, async (err, existingUser) => {
+            if (err) {
+                console.error('Error checking login:', err);
+                return res.status(500).json({ error: 'Internal server error' });
+            }
+            if (existingUser) {
+                return res.status(400).json({ error: 'Login already in use' });
+            }
+
+            userModel.findByEmail(email, async (err, existingUser) => {
+                if(err) {
+                    console.error('Error checking email:', err);
+                    return res.status(500).json({ error: 'Internal server error'});
+                }
+                if (existingUser) {
+                    return res.status(400).json({ error: 'Email already in use' });
+                }
+
+                try{
+                    const salt = await bcrypt.genSalt(10);
+                    const hashedPassword = await bcrypt.hash(password, salt);
+
+                    userModel.createUser({ login, full_name, password: hashedPassword, email, email_confirmation_token: null}, (err, results) => {
+                        if (err) {
+                            console.error('Error creating user:', err);
+                            return res.status(500).json({ error: 'Failed to create user' });
+                        }
+
+                        const userId = results.insertId;
+                        userModel.updateUser(userId, { email_confirmed: true, role: role || 'user' }, (err) => {
+                            if(err){
+                                console.error('Error updating user:', err);
+                                return res.status(500).json({ error: 'User created but failed to update role and confirm email'});
+                            }
+
+                            userModel.findById(userId, (err, newUser) => {
+                                if(err) {
+                                    console.error('Error fetching new user:', err);
+                                    return res.status(500).json({ error: 'User created succesfully' });
+                                }
+
+                                res.status(201).json({
+                                    message: 'User created successfully',
+                                    user: {
+                                        id: newUser.id,
+                                        login: newUser.login,
+                                        full_name: newUser.full_name,
+                                        email: newUser.email,
+                                        email_confirmed: newUser.email_confirmed,
+                                        profile_picture: newUser.profile_picture,
+                                        rating: newUser.rating,
+                                        role: newUser.role,
+                                        created_at: newUser.created_at
+                                    }
+                                });
+                            });
+                        });
+                    });
+                } catch (hashError) {
+                    console.error('Password hashing error:', hashError);
+                    return res.status(500).json({ error: 'Failed to create user due to password hashing error' });
+                }
+            });
+        });
+    } catch (error) {
+        console.error('Unexpected error creating user:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+exports.updateUser = (req, res) => {
+    try {
+        const userId = req.params.user_id;
+        const currentUserId = req.session.user.id;
+        const currentUserRole = req.session.user.role;
+        const { full_name, email } = req.body;
+
+        if (currentUserRole !== 'admin' && currentUserId != userId) {
+            return res.status(403).json({ error: 'Your current role allows to update your own profile'});
+        }
+        if (!full_name && !email) {
+            return res.status(400).json({ error: 'At least one field (full_name or email) must be provided' });
+        }
+
+        userModel.findById(userId, (err, user) => {
+            if (err) {
+                console.error('Error fetching user:', err);
+                return res.status(500).json({ error: 'Internal server error' });
+            }
+            if (!user) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+
+            const updateFields = {};
+            if (full_name) { updateFields.full_name = full_name; }
+            if (email && email !== user.email) {
+                updateFields.email = email;
+                updateFields.email_confirmed = false;
+                updateFields.email_confirmation_token = require('crypto').randomBytes(32).toString('hex');
+            }
+            if(Object.keys(updateFields).length === 0) {
+                return res.status(400).json({ error: 'No changes detected' });
+            }
+
+            userModel.updateUser(userId, updateFields, (err) => {
+                if(err) {
+                    console.error('Error updating user:', err);
+                    return res.status(500).json({ error: 'Internal server error' });
+                }
+
+                if(updateFields.email_confirmation_token) {
+                    transporter.sendMail({
+                        from: '"Usof" <diana.malashta17@gmail.com>',
+                        to: updateFields.email,
+                        subject: 'Підтвердження нової електронної пошти',
+                        text: `Для підтвердження нової електронної пошти перейдіть за посиланням: http://localhost:3000/api/auth/confirm-email?token=${updateFields.email_confirmation_token}`
+                    }, (err, info) => {
+                        if (err) console.error('Error sending email:', err);
+                    });
+                }
+
+                userModel.findById(userId, (err, updatedUser) => {
+                    if (err) {
+                        console.error('Error fetching updated user:', err);
+                        return res.status(500).json({ error: 'User updated succesfully but internal server error on fetching them' });
+                    }
+
+                    res.json({
+                        message: 'User updated successfully. Please confirm your new email address.',
+                        user: {
+                            id: updatedUser.id,
+                            login: updatedUser.login,
+                            full_name: updatedUser.full_name,
+                            email: updatedUser.email,
+                            email_confirmed: updatedUser.email_confirmed,
+                            profile_picture: updatedUser.profile_picture,
+                            rating: updatedUser.rating,
+                            role: updatedUser.role,
+                            created_at: updatedUser.created_at
+                        }
+                    });
+                });
+            });
+        });
+    } catch (error) {
+        console.error('Error updating user:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
