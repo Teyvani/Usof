@@ -1,11 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
-const categoryModel = require('../controllers/categoryController');
+const categoryController = require('../controllers/categoryController');
+const commentController = require('../controllers/commentController');
+const likeController = require('../controllers/likeController');
+const postController = require('../controllers/postController');
+const mainChecker = require('../middleware/mainChecker');
 const authMiddleware = require('../middleware/authentication');
 const validMiddleware = require('../middleware/validation');
-const postRouter = require('./postsRouter');
-
 
 const multer = require('multer');
 const upload = multer({ dest: 'uploads/'} );
@@ -30,15 +32,33 @@ router.delete('/users/:user_id', validMiddleware.isLoggedIn, validMiddleware.isA
 router.patch('/users/:user_id/role', validMiddleware.isLoggedIn, validMiddleware.isAdmin, userController.updateUserRole);
 router.get('/profile/avatar/:id', userController.getAvatar);
 
-/*Category Routes
-TO-DO*/
+/*Category Routes*/
+router.get('/categories', categoryController.getAllCategories);
+router.get('/categories/:category_id', categoryController.getCategoryById);
+router.get('/categories/:category_title/posts', categoryController.getCategoryPosts);
+router.post('/categories', validMiddleware.isLoggedIn, validMiddleware.isAdmin, categoryController.createCategory);
+router.patch('/categories/:category_id', validMiddleware.isLoggedIn, validMiddleware.isAdmin, categoryController.updateCategory);
+router.delete('/categories/:category_id', validMiddleware.isLoggedIn, validMiddleware.isAdmin, categoryController.deleteCategory);
 
-/*Admin only routes*/
-router.delete('/users/:id', validMiddleware.isLoggedIn, validMiddleware.isAdmin, userController.deleteUser);
-router.patch('/users/:id/role', validMiddleware.isLoggedIn, validMiddleware.isAdmin, userController.updateUserRole);
-router.
+/*Comment Routes*/
+router.get('/comments/:comment_id', commentController.getCommentById);
+router.get('/comments/:comment_id/like', commentController.getCommentLikes);
+router.post('/comments/:comment_id/like', validMiddleware.isLoggedIn, likeController.addCommentLike);
+router.patch('/comments/:comment_id', validMiddleware.isLoggedIn, commentController.updateComment);
+router.delete('/comments/:comment_id', validMiddleware.isLoggedIn, commentController.deleteComment);
+router.delete('/comments/:comment_id/like', validMiddleware.isLoggedIn, likeController.deleteCommentLike);
 
 /*Posts Routes*/
-router.use('/posts', postRouter);
+router.get('/posts', postController.getAllPosts);
+router.get('/posts/:post_id', postController.getPostById);
+router.post('/posts', validMiddleware.isLoggedIn, mainChecker.createPost, upload.array('postImages', 10), postController.createPost);
+router.patch('/posts/:post_id', validMiddleware.isLoggedIn, mainChecker.updatePost, postController.updatePost);
+router.delete('/posts/:post_id', validMiddleware.isLoggedIn, postController.deletePost);
+router.get('/posts/:post_id/comments', commentController.getPostComments);
+router.post('/posts/:post_id/comments', validMiddleware.isLoggedIn, mainChecker.createComment, commentController.createComment);
+router.get('/posts/:post_id/categories', postController.getPostCategories);
+router.get('/posts/:post_id/like', likeController.getPostLikes);
+router.post('/posts/:post_id/like', validMiddleware.isLoggedIn, likeController.addPostLike);
+router.delete('/posts/:post_id/like', validMiddleware.isLoggedIn, likeController.deletePostLike);
 
 module.exports = router;
