@@ -7,34 +7,78 @@ function createPost({ author_id, title, content }, callback){
     });
 }
 
-function getAllPosts(callback){
+function getAllPosts(filters = {}, callback){
     const sql = `
-        SELECT p.*, 
+        SELECT p.*, u.login as author_login, u.full_name as author_name,
                GROUP_CONCAT(DISTINCT c.title) AS categories,
+               GROUP_CONCAT(DISTINCT c.id) AS category_ids,
                GROUP_CONCAT(DISTINCT i.image_path) AS images
         FROM posts p
+        LEFT JOIN users u ON p.author_id = u.id
         LEFT JOIN post_categories pc ON p.id = pc.post_id
         LEFT JOIN categories c ON pc.category_id = c.id
         LEFT JOIN post_images i ON p.id = i.post_id
-        GROUP BY p.id
-        ORDER BY p.published_at DESC`;
+        WHERE 1=1`;
     
-    db.query(sql, (err, results) => {
-        if (err) return callback(err);
-        results.forEach(r => {
-            r.categories = r.categories ? r.categories.split(',') : [];
-            r.images = r.images ? r.images.split(',') : [];
+    const params = [];
+        if (filters.status && filters.status !== 'all') {
+            sql += ' AND p.status = ?';
+            params.push(filters.status);
+        }
+        if (filters.categories && filters.categories.length > 0) {
+            const placeholders = filters.categories.map(() => '?').join(',');
+            sql += ` AND p.id IN (
+                SELECT DISTINCT pc.post_id 
+                FROM post_categories pc 
+                WHERE pc.category_id IN (${placeholders})
+            )`;
+            params.push(...filters.categories);
+        }
+        if (filters.dateFrom) {
+            sql += ' AND p.published_at >= ?';
+            params.push(filters.dateFrom);
+        }
+        if (filters.dateTo) {
+            sql += ' AND p.published_at <= ?';
+            params.push(filters.dateTo);
+        }
+        sql += ' GROUP BY p.id';
+
+        if (filters.sortBy === 'date') {
+            sql += ' ORDER BY p.published_at DESC';
+        } else {
+            sql += ' ORDER BY p.likes_count DESC, p.published_at DESC'; // Default: sort by likes
+        }
+        
+        if (filters.limit) {
+            sql += ' LIMIT ?';
+            params.push(parseInt(filters.limit));
+            
+            if (filters.offset) {
+                sql += ' OFFSET ?';
+                params.push(parseInt(filters.offset));
+            }
+        }
+        
+        db.query(sql, params, (err, results) => {
+            if (err) return callback(err);
+            results.forEach(r => {
+                r.categories = r.categories ? r.categories.split(',') : [];
+                r.category_ids = r.category_ids ? r.category_ids.split(',').map(id => parseInt(id)) : [];
+                r.images = r.images ? r.images.split(',') : [];
+            });
+            callback(null, results);
         });
-        callback(null, results);
-    });
 }
 
-function getPostByID(id, callback){
+function getPostByID(id, callback) {
     const sql = `
-        SELECT p.*, 
+        SELECT p.*, u.login as author_login, u.full_name as author_name, u.profile_picture as author_avatar,
                GROUP_CONCAT(DISTINCT c.title) AS categories,
+               GROUP_CONCAT(DISTINCT c.id) AS category_ids,
                GROUP_CONCAT(DISTINCT i.image_path) AS images
         FROM posts p
+        LEFT JOIN users u ON p.author_id = u.id
         LEFT JOIN post_categories pc ON p.id = pc.post_id
         LEFT JOIN categories c ON pc.category_id = c.id
         LEFT JOIN post_images i ON p.id = i.post_id
@@ -47,6 +91,7 @@ function getPostByID(id, callback){
 
         const post = results[0];
         post.categories = post.categories ? post.categories.split(',') : [];
+        post.category_ids = post.category_ids ? post.category_ids.split(',').map(id => parseInt(id)) : [];
         post.images = post.images ? post.images.split(',') : [];
         callback(null, post);
     });
@@ -76,16 +121,47 @@ function deletePost(id, callback){
     });
 }
 
-function addCategoriesToPost(postId, categoryIds, callback){
+function getPostsByUserId(userId, includeInactive = false, callback) {
+    let sql = `
+        SELECT p.*, 
+               GROUP_CONCAT(DISTINCT c.title) AS categories,
+               GROUP_CONCAT(DISTINCT i.image_path) AS images
+        FROM posts p
+        LEFT JOIN post_categories pc ON p.id = pc.post_id
+        LEFT JOIN categories c ON pc.category_id = c.id
+        LEFT JOIN post_images i ON p.id = i.post_id
+        WHERE p.author_id = ?`;
+    
+    if (!includeInactive) {
+        sql += ' AND p.status = "active"';
+    }
+    sql += ' GROUP BY p.id ORDER BY p.published_at DESC';
+    
+    db.query(sql, [userId], (err, results) => {
+        if (err) return callback(err);
+        results.forEach(r => {
+            r.categories = r.categories ? r.categories.split(',') : [];
+            r.images = r.images ? r.images.split(',') : [];
+        });
+        callback(null, results);
+    });
+}
+
+function addCategoriesToPost(postId, categoryIds, callback) {
     if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
         return callback(null, { affectedRows: 0 });
     }
     
-    const values = categoryIds.map(catId => [postId, catId]);
-    const sql = `INSERT INTO post_categories (post_id, category_id) VALUES ?`;
-    db.query(sql, [values], (err, results) => {
+    const deleteSql = 'DELETE FROM post_categories WHERE post_id = ?';
+    db.query(deleteSql, [postId], (err) => {
         if (err) return callback(err);
-        callback(null, results);
+        
+        const values = categoryIds.map(catId => [postId, catId]);
+        const insertSql = `INSERT INTO post_categories (post_id, category_id) VALUES ?`;
+        db.query(insertSql, [values], (err, results) => {
+            if (err) return callback(err);
+            callback(null, results);
+        });
     });
 }
 
@@ -102,4 +178,44 @@ function addImagesToPost(postId, imagePaths, callback){
     });
 }
 
-module.exports = {createPost, getAllPosts, getPostByID, updatePost, deletePost, addCategoriesToPost, addImagesToPost};
+function removeImagesFromPost(postId, callback) {
+    const sql = 'DELETE FROM post_images WHERE post_id = ?';
+    db.query(sql, [postId], callback);
+}
+
+function getPostCategories(postId, callback) {
+    const sql = `
+        SELECT c.id, c.title
+        FROM categories c
+        JOIN post_categories pc ON c.id = pc.category_id
+        WHERE pc.post_id = ?`;
+    
+    db.query(sql, [postId], callback);
+}
+
+function updatePostStats(postId, callback) {
+    const updateLikesCountSql = `
+        UPDATE posts 
+        SET likes_count = (
+            SELECT COALESCE(SUM(CASE WHEN type = 'like' THEN 1 WHEN type = 'dislike' THEN -1 ELSE 0 END), 0)
+            FROM likes 
+            WHERE target_type = 'post' AND target_id = ?
+        )
+        WHERE id = ?`;
+    
+    const updateCommentsCountSql = `
+        UPDATE posts 
+        SET comments_count = (
+            SELECT COUNT(*) 
+            FROM comments 
+            WHERE post_id = ? AND status = 'active'
+        )
+        WHERE id = ?`;
+    
+    db.query(updateLikesCountSql, [postId, postId], (err) => {
+        if (err) return callback(err);
+        db.query(updateCommentsCountSql, [postId, postId], callback);
+    });
+}
+
+module.exports = {createPost, getAllPosts, getPostByID, updatePost, deletePost, getPostsByUserId, addCategoriesToPost, addImagesToPost, removeImagesFromPost, getPostCategories, updatePostStats};

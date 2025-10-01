@@ -1,5 +1,4 @@
 const categoryModel = require('../models/categoryModel');
-const { post } = require('../routes/postsRouter');
 
 exports.getAllCategories = (req, res) => {
     try {
@@ -46,22 +45,15 @@ exports.getCategoryPosts = (req, res) => {
             }
             if (!category) { return res.status(404).json({ error: 'Category not found' }); }
 
-            categoryModel.getCategoryIdByTitle(categoryTitle, (err, categoryId) => {
+            categoryModel.getCategoryPosts(categoryId, (err, posts) => {
                 if (err) {
-                    console.error('Error fetching category id:', err);
-                    return res.status(500).json({ error: 'Internal server error' });
+                    console.error('Error fetching category posts:', err);
+                    return res.status(500).json({ error: 'Internal srever error.' });
                 }
 
-                categoryModel.getCategoryPosts(categoryId, (err, posts) => {
-                    if (err) {
-                        console.error('Error fetching category posts:', err);
-                        return res.status(500).json({ error: 'Internal srever error.' });
-                    }
-
-                    res.json({
-                        category,
-                        posts
-                    });
+                res.json({
+                    category,
+                    posts
                 });
             });
         });

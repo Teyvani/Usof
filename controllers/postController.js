@@ -1,4 +1,7 @@
+const { error } = require('console');
 const postModel = require('../models/postModel');
+const fs = require('fs');
+
 
 exports.createPost = (req, res) => {
     try {
@@ -38,6 +41,180 @@ exports.createPost = (req, res) => {
         });
     } catch (error) {
         console.error('Unexpected error creating post:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+exports.getAllPosts = (req, res) => {
+    try {
+        const filters = {
+            status: req.query.status || 'active',
+            categories: req.query.categories ? req.query.categories.split(',').map(id => parseInt(id)) : null,
+            dateFrom: req.query.date_from || null,
+            dateTo: req.query.date_to || null,
+            sortBy: req.query.sort_by || 'likes',
+            limit: req.query.limit ? parseInt(req.query.limit) : 20,
+            offset: req.query.offset ? parseInt(req.query.offset) : 0
+        };
+
+        if(!req.session.user || req.session.user.role !== 'admin') {
+            filters.status = 'active';
+        }
+
+        postModel.getAllPosts(filters, (err, posts) => {
+            if (err) {
+                console.error('Error fetching posts:', err);
+                return res.status(500).json({ error: 'Internal server error' });
+            }
+
+            res.json({
+                posts,
+                pagination: {
+                    limit: filters.limit,
+                    offset: filters.offset,
+                    hasMore: posts.length === filters.limit
+                }
+            });
+        });
+    } catch (error) {
+        console.error('Error fetching posts:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+exports.getPostById = (req, res) => {
+    try {
+        const postId = req.params.post_id;
+
+        postModel.getPostByID(postId, (err, post) => {
+            if (err) {
+                console.error('Error fetching post:', err);
+                return res.status(500).json({ error: 'Internal server error' });
+            }
+            if (!post) { return res.status(404).json({ error: 'Post not found' }); }
+
+            const user = req.session.user;
+            if (post.status === 'inactive') {
+                if (!user || (user.role !== 'admin' && user.id !== post.author_id)){
+                    return res.status(404).json({ error: 'Post not found' });
+                }
+            }
+
+            res.json({ post });
+        });
+    } catch (error) {
+        console.error('Error fetching post:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+exports.updatePost = (req, res) => {
+    try {
+        const postId = req.params.post_id;
+        const userId = req.session.user.id;
+        const userRole = req.session.user.role;
+        const { title, content, categories, status } = req.body;
+
+        postModel.getPostByID(postId, (err, post) => {
+            if (err) {
+                console.error('Error fetching post for an update:', error);
+                return res.status(500).json({ error: 'Internal server error' });
+            }
+            if (!post) { return res.status(404).json({ error: 'Post not found' }); }
+
+            const editPermission = userRole === 'admin' || post.author_id === userId;
+            if (!editPermission) { return res.status(403).json({ error: 'You can only edit your own posts' }); }
+
+            const updateFields = {};
+            if (title !== undefined) updateFields.title = title;
+            if (content !== undefined && post.author_id === userId) updateFields.content = content;
+            if (status !== undefined && userRole === 'admin') updateFields.status = status;
+
+            postModel.updatePost(postId, updateFields, (err) => {
+                if (err) {
+                    console.error('Error updating post:', err);
+                    return res.status(500).json({ error: 'Internal server error' });
+                }
+
+                if (categories && Array.isArray(categories)) {
+                    postModel.addCategoriesToPost(postId, categories, (err) => {
+                        if (err) console.error('Error updating categories:', err);
+                    });
+                }
+
+                postModel.getPostByID(postId, (err, updatedPost) => {
+                    if (err) {
+                        console.error('Error fetching updated post:', err);
+                        return res.status(500).json({ error: 'Internal server error' });
+                    }
+            
+                    res.json({
+                        message: 'Post updated successfully',
+                        post: updatedPost
+                    });
+                });
+            });
+        });
+    } catch (error) {
+        console.error('Error updating a post');
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+exports.deletePost = (req, res) => {
+    try {
+        const postId = req.params.post_id;
+        const userId = req.session.user.id;
+        const userRole = req.session.user.role;
+
+        postModel.getPostByID(postId, (err, post) => {
+            if (err) {
+                console.error('Error fetching post for deletion:', err);
+                return res.status(500).json({ error: 'Internal server error' });
+            }
+            if (!post) {
+                return res.status(404).json({ error: 'Post not found' });
+            }
+
+            const deletePermission = userRole === 'admin' || post.author_id === userId;
+            if (!deletePermission) { return res.status(403).json({ error: 'You can only delete your own posts' }); }
+            if (post.images && post.images.length > 0) {
+                post.images.forEach(imagePath => {
+                    fs.unlink(imagePath, (err) => {
+                        if (err) console.error('Error deleting image file:', err);
+                    });
+                });
+            }
+
+            postModel.deletePost(postId, (err) => {
+                if (err) {
+                    console.error('Error deleting post:', err);
+                    return res.status(500).json({ error: 'Internal server error' });
+                }
+
+                res.json({ message: 'Post deleted successfully' });
+            });
+        });
+    } catch (error) {
+        console.error('Unexpected error deleting post:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+exports.getPostCategories = (req, res) => {
+    try {
+        const postId = req.params.post_id;
+
+        postModel.getPostCategories(postId, (err, categories) => {
+            if (err) {
+                console.error('Error fetching post categories:', err);
+                return res.status(500).json({ error: 'Internal server error' });
+            }
+
+            res.json({ categories });
+        });
+    } catch (error) {
+        console.error('Unexpected error fetching post categories:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 };

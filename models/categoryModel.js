@@ -8,14 +8,6 @@ function getAllCategories(callback){
     });
 }
 
-function getCategoryIdByTitle(title, callback) {
-    const sql = `SELECT id FROM categories WHERE title = ?`;
-    db.query(sql, [title], (err, results) => {
-        if (err) return callback(err);
-        callback(null, results.length > 0 ? results[0].id : null);
-    });
-}
-
 function getCategoryById(id, callback){
     const sql = `SELECT * FROM categories WHERE id = ?`;
     db.query(sql, [id], (err, results) => {
@@ -86,4 +78,4 @@ function getCategoryPosts(categoryId, callback){
     });
 }
 
-module.exports = {getAllCategories, getCategoryIdByTitle, getCategoryById, getCategoryByTitle, createCategory, updateCategory, deleteCategory, getCategoryPosts};
+module.exports = {getAllCategories, getCategoryById, getCategoryByTitle, createCategory, updateCategory, deleteCategory, getCategoryPosts};

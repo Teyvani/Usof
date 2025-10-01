@@ -35,8 +35,8 @@ exports.register = async (req, res) => {
                             const info = await transporter.sendMail({
                                 from: '"Usof" <diana.malashta17@gmail.com>',
                                 to: email,
-                                subject: 'Підтвердження реєстрації',
-                                text: 'Для підтвердження реєстрації перейдіть за посиланням: http://localhost:3000/api/auth/confirm-email?token=' + token
+                                subject: 'Registration confirmation',
+                                text: 'To confirm your registration, follow the link: http://localhost:3000/api/auth/confirm-email?token=' + token
                             });
                             console.log('Message sent: %s', info.messageId);
                         })();
@@ -71,8 +71,8 @@ exports.sendEmailTokenAgain = async (req, res) => {
                 const info = await transporter.sendMail({
                     from: '"Usof" <diana.malashta17@gmail.com>',
                     to: email,
-                    subject: 'Повторне повідомлення підтвердження реєстрації',
-                    text: 'Для підтвердження реєстрації перейдіть за посиланням: http://localhost:3000/api/auth/confirm-email?token=' + token
+                    subject: 'Registration confirmation message retry',
+                    text: 'To confirm your registration, follow the link: http://localhost:3000/api/auth/confirm-email?token=' + token
                 });
                 console.log('Message sent: %s', info.messageId);
             })();
@@ -149,8 +149,8 @@ exports.passwordResetRequest = async (req, res) => {
                     const info = await transporter.sendMail({
                         from: '"Usof" <diana.malashta17@gmail.com>',
                         to: email,
-                        subject: 'Підтвердження зміни пароля',
-                        text: 'Увага! Цей посилання буде дійсним протягом 10 хвилин. Для підтвердження зміни пароля перейдіть за посиланням: http://localhost:3000/api/auth/reset-password?token=' + password_reset_token
+                        subject: 'Confirmation of password change',
+                        text: 'Attention! This link will be valid for 10 minutes. To confirm your password change, follow the link: http://localhost:3000/api/auth/reset-password?token=' + password_reset_token
                     });
                     console.log('Message sent: %s', info.messageId);
                 })();
@@ -455,8 +455,8 @@ exports.updateUser = (req, res) => {
                     transporter.sendMail({
                         from: '"Usof" <diana.malashta17@gmail.com>',
                         to: updateFields.email,
-                        subject: 'Підтвердження нової електронної пошти',
-                        text: `Для підтвердження нової електронної пошти перейдіть за посиланням: http://localhost:3000/api/auth/confirm-email?token=${updateFields.email_confirmation_token}`
+                        subject: 'Confirmation of new email address',
+                        text: `To confirm your new email address, follow the link: http://localhost:3000/api/auth/confirm-email?token=${updateFields.email_confirmation_token}`
                     }, (err, info) => {
                         if (err) console.error('Error sending email:', err);
                     });
