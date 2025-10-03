@@ -5,9 +5,14 @@ const categoryController = require('../controllers/categoryController');
 const commentController = require('../controllers/commentController');
 const likeController = require('../controllers/likeController');
 const postController = require('../controllers/postController');
+const notificationController = require('../controllers/notificationController');
+const collectionController = require('../controllers/collectionController');
+const followController = require('../controllers/followController');
+const reportController = require('../controllers/reportController');
 const mainChecker = require('../middleware/mainChecker');
 const authMiddleware = require('../middleware/authentication');
 const validMiddleware = require('../middleware/validation');
+const middleChecker = require('../middleware/middleChecker');
 
 const multer = require('multer');
 const upload = multer({ dest: 'uploads/'} );
@@ -60,6 +65,40 @@ router.get('/posts/:post_id/categories', postController.getPostCategories);
 router.get('/posts/:post_id/like', likeController.getPostLikes);
 router.post('/posts/:post_id/like', mainChecker.emptyBody, validMiddleware.isLoggedIn, likeController.addPostLike);
 router.delete('/posts/:post_id/like', validMiddleware.isLoggedIn, likeController.deletePostLike);
+
+/*Notification Routes*/
+router.get('/notifications', validMiddleware.isLoggedIn, notificationController.getUserNotifications);
+router.get('/notifications/unread-count', validMiddleware.isLoggedIn, notificationController.getUnreadCount);
+router.patch('/notifications/:notification_id/read', mainChecker.emptyBody, validMiddleware.isLoggedIn, mainChecker.validateId, notificationController.markAsRead);
+router.patch('/notifications/mark-all-read', mainChecker.emptyBody, validMiddleware.isLoggedIn, notificationController.markAllAsRead);
+router.delete('/notifications/:notification_id', validMiddleware.isLoggedIn, mainChecker.validateId, notificationController.deleteNotification);
+
+/*Collection Routes*/
+router.get('/collections', collectionController.getPublicCollections);
+router.get('/collections/my', validMiddleware.isLoggedIn, collectionController.getUserCollections);
+router.get('/collections/:collection_id', mainChecker.validateId, collectionController.getCollectionById);
+router.get('/collections/:collection_id/posts', mainChecker.validateId, collectionController.getCollectionPosts);
+router.post('/collections', mainChecker.emptyBody, validMiddleware.isLoggedIn, middleChecker.createCollection, collectionController.createCollection);
+router.patch('/collections/:collection_id', mainChecker.emptyBody, validMiddleware.isLoggedIn, mainChecker.validateId, collectionController.updateCollection);
+router.delete('/collections/:collection_id', validMiddleware.isLoggedIn, mainChecker.validateId, collectionController.deleteCollection);
+router.post('/collections/:collection_id/posts/:post_id', mainChecker.emptyBody, validMiddleware.isLoggedIn, mainChecker.validateId, collectionController.addPostToCollection);
+router.delete('/collections/:collection_id/posts/:post_id', validMiddleware.isLoggedIn, mainChecker.validateId, collectionController.removePostFromCollection);
+
+/*Follow Routes*/
+router.get('/follow/posts', validMiddleware.isLoggedIn, followController.getUserFollowedPosts);
+router.post('/posts/:post_id/follow', mainChecker.emptyBody, validMiddleware.isLoggedIn, mainChecker.validateId, followController.followPost);
+router.delete('/posts/:post_id/follow', validMiddleware.isLoggedIn, mainChecker.validateId, followController.unfollowPost);
+router.get('/posts/:post_id/followers', mainChecker.validateId, followController.getPostFollowers);
+router.get('/posts/:post_id/follow-status', validMiddleware.isLoggedIn, mainChecker.validateId, followController.checkFollowStatus);
+
+/*Report Routes*/
+router.get('/reports', validMiddleware.isLoggedIn, validMiddleware.isAdmin, middleChecker.getAllReports, reportController.getAllReports);
+router.get('/reports/my', validMiddleware.isLoggedIn, reportController.getUserReports);
+router.get('/reports/stats', validMiddleware.isLoggedIn, validMiddleware.isAdmin, reportController.getReportsStats);
+router.get('/reports/:report_id', validMiddleware.isLoggedIn, validMiddleware.isAdmin, mainChecker.validateId, reportController.getReportById);
+router.post('/reports', mainChecker.emptyBody, validMiddleware.isLoggedIn, middleChecker.createReport, reportController.createReport);
+router.patch('/reports/:report_id/process', mainChecker.emptyBody, validMiddleware.isLoggedIn, validMiddleware.isAdmin, mainChecker.validateId, middleChecker.processReport, reportController.processReport);
+router.delete('/reports/:report_id', validMiddleware.isLoggedIn, mainChecker.validateId, reportController.deleteReport);
 
 /* TO-DO:
 Posibility for a user to see only theirs posts including innactive */

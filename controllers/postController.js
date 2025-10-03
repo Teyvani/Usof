@@ -1,4 +1,3 @@
-const { error } = require('console');
 const postModel = require('../models/postModel');
 const fs = require('fs');
 

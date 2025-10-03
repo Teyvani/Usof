@@ -40,6 +40,15 @@ exports.createComment = (req, res) => {
                     if (err) console.error('Error updating post comment count:');
                 });
 
+                const notificationModel = require('../models/notificationModel');
+                notificationModel.notifyPostAuthor(postId, authorId, commentId, (err) => {
+                    if (err) console.error('Error notifying post author:', err);
+                });
+
+                notificationModel.notifyPostFollowers(postId, authorId, commentId, (err) => {
+                    if (err) console.error('Error notifying post followers:', err);
+                });
+
                 commentModel.getCommentById(commentId, (err, newComment) => {
                     if (err) {
                         console.error('Error fetching new comment:', err);
