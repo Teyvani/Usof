@@ -242,12 +242,12 @@ exports.addPostToCollection = (req, res) => {
                     return res.status(400).json({ error: 'Cannot add inactive posts to collection' });
                 }
 
-                collectionModel.isPostInCollection(collectionId, postId, (err, post) => {
+                collectionModel.isPostInCollection(collectionId, postId, (err, isInCollection) => {
                     if (err) {
                         console.error('Error checking if post in the collection');
                         return res.status(500).json({ erro: 'Internal server error' });
                     }
-                    if (post) return res.status(400).json({ error: 'Post already in collection' });
+                    if (isInCollection) return res.status(400).json({ error: 'Post already in collection' });
 
                     collectionModel.addPostToCollection(collectionId, postId, (err) => {
                         if (err) {

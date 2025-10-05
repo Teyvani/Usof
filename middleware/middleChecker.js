@@ -27,7 +27,7 @@ function getAllReports(req, res, next) {
 }
 
 function processReport(req, res, next) {
-    const action = req.body;
+    const { action } = req.body;
 
     if (!action) return res.status(400).json({ error: '"action" is required' });
     if (!['ignored', 'deleted', 'warned'].includes(action)) {

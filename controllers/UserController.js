@@ -16,12 +16,12 @@ exports.register = async (req, res) => {
 
     try {
         userModel.findByLogin(login, (err, user) => {
-            if (err) return res.status(500).send('Database error.');
-            if (user) return res.status(400).send('Login already in use.');
+            if (err) return res.status(500).json({ error: 'Database error.' });
+            if (user) return res.status(400).json({ error: 'Login already in use.' });
 
             userModel.findByEmail(email, async (err, user) => {
-                if (err) return res.status(500).send('Database error.');
-                if (user) return res.status(400).send('Email already in use.');
+                if (err) return res.status(500).json({ error: 'Database error.' });
+                if (user) return res.status(400).json({ error: 'Email already in use.' });
 
                 try {
                     const salt = await bcrypt.genSalt(10);
@@ -29,7 +29,7 @@ exports.register = async (req, res) => {
                     const token = crypto.randomBytes(32).toString('hex');
 
                     userModel.createUser({ login, full_name, password: hash, email, email_confirmation_token: token }, (err) => {
-                        if (err) return res.status(500).send('Failed to register user.');
+                        if (err) return res.status(500).json({ error: 'Failed to register user.' });
 
                         (async () => {
                             const info = await transporter.sendMail({
@@ -41,31 +41,31 @@ exports.register = async (req, res) => {
                             console.log('Message sent: %s', info.messageId);
                         })();
 
-                        return res.status(201).send('User registered. Please confirm your email.');
+                        return res.status(201).json({ message: 'User registered. Please confirm your email.' });
                     });
                 } catch (error) {
                     console.error('Hashing error:', error);
-                    return res.status(500).send('Failed to register user.');
+                    return res.status(500).json({ error: 'Failed to register user.' });
                 }
             });
         });
     } catch (error) {
         console.error('Register error:', error);
-        return res.status(500).send('Server error.');
+        return res.status(500).json({ error: 'Server error.' });
     }
 };
 
 exports.sendEmailTokenAgain = async (req, res) => {
     const { email } = req.body;
-    if (!email) return res.status(400).send('Email is required.');
+    if (!email) return res.status(400).json({ error: 'Email is required.' });
     userModel.findByEmail(email, async (err, user) => {
-        if (err) return res.status(500).send('Database error.');
-        if (!user) return res.status(400).send('User not found.');
-        if (user.email_confirmed) return res.status(400).send('Email already confirmed.');
+        if (err) return res.status(500).json({ error: 'Database error.' });
+        if (!user) return res.status(400).json({ error: 'User not found.' });
+        if (user.email_confirmed) return res.status(400).json({ error: 'Email already confirmed.' });
 
         const token = crypto.randomBytes(32).toString('hex');
         userModel.updateUser(user.id, { email_confirmation_token: token }, (err) => {
-            if (err) return res.status(500).send('Failed to set confirmation token.');
+            if (err) return res.status(500).json({ error: 'Failed to set confirmation token.' });
 
             (async () => {
                 const info = await transporter.sendMail({
@@ -76,28 +76,28 @@ exports.sendEmailTokenAgain = async (req, res) => {
                 });
                 console.log('Message sent: %s', info.messageId);
             })();
-            return res.status(200).send('Confirmation send again');
+            return res.status(200).json({ message: 'Confirmation send again' });
         });
     });
 };
 
 exports.confirmEmail = async (req, res) => {
     const token = req.query.token;
-    if (!token) return res.status(400).send('Token is required.');
+    if (!token) return res.status(400).json({ error: 'Token is required.' });
 
     try {
         userModel.findByEmailToken(token, (err, user) => {
-            if (err) return res.status(500).send('Database error.');
-            if (!user) return res.status(400).send('Invalid token or email already confirmed.');
+            if (err) return res.status(500).json({ error: 'Database error.' });
+            if (!user) return res.status(400).json({ error: 'Invalid token or email already confirmed.' });
 
             userModel.updateUser(user.id, { email_confirmed: true, email_confirmation_token: null }, (err) => {
-                if (err) return res.status(500).send('Failed to confirm email.');
-                return res.status(200).send('Email confirmed successfully.');
+                if (err) return res.status(500).json({ error: 'Failed to confirm email.' });
+                return res.status(200).json({ message: 'Email confirmed successfully.' });
             });
         });
     } catch (error) {
         console.error('Confirm email error:', error);
-        return res.status(500).send('Server error.');
+        return res.status(500).json({ error: 'Server error.' });
     }
 };
 
@@ -107,12 +107,12 @@ exports.login = (req, res) => {
     const identifier = login || email;
 
     findUser(identifier, async (err, user) => {
-        if (err) return res.status(500).send('Database error.');
-        if (!user) return res.status(400).send('User not found.');
-        
+        if (err) return res.status(500).json({ error: 'Database error.' });
+        if (!user) return res.status(400).json({ error: 'User not found.' });
+
         const valid = await bcrypt.compare(password, user.password);
-        if (!valid) return res.status(400).send('Invalid password.');
-        if (!user.email_confirmed) return res.status(400).send('Email not confirmed. Please confirm your email.');
+        if (!valid) return res.status(400).json({ error: 'Invalid password.' });
+        if (!user.email_confirmed) return res.status(400).json({ error: 'Email not confirmed. Please confirm your email.' });
 
         req.session.user = {
             id: user.id,
@@ -121,29 +121,29 @@ exports.login = (req, res) => {
             role: user.role
         };
 
-        res.status(200).send({message: 'Login successful', user: req.session.user});
+        res.status(200).json({ message: 'Login successful', user: req.session.user });
     });
 }
 
 exports.logout = (req, res) => {
     req.session.destroy((err) => {
-        if (err) return res.status(500).send('Failed to logout.');
-        res.status(200).send('Logout successful.');
+        if (err) return res.status(500).json({ error: 'Failed to logout.' });
+        res.status(200).json({ message: 'Logout successful.' });
     });
 }
 
 exports.passwordResetRequest = async (req, res) => {
     const { email } = req.body;
-    if (!email) return res.status(400).send('Email is required.');
+    if (!email) return res.status(400).json({ error: 'Email is required.' });
     userModel.findByEmail(email, async (err, user) => {
-        if (err) return res.status(500).send('Database error.');
-        if (!user) return res.status(400).send('User not found.');
+        if (err) return res.status(500).json({ error: 'Database error.' });
+        if (!user) return res.status(400).json({ error: 'User not found.' });
         const password_reset_token = crypto.randomBytes(32).toString('hex');
         const expiration = new Date();
         expiration.setMinutes(expiration.getMinutes() + 10); // 10 minutes
         const password_reset_token_expiration = expiration;
         userModel.updateUser(user.id, { password_reset_token, password_reset_token_expiration }, (err) => {
-            if (err) return res.status(500).send('Failed to set reset token.');
+            if (err) return res.status(500).json({ error: 'Failed to set reset token.' });
 
                 (async () => {
                     const info = await transporter.sendMail({
@@ -154,35 +154,35 @@ exports.passwordResetRequest = async (req, res) => {
                     });
                     console.log('Message sent: %s', info.messageId);
                 })();
-            return res.status(200).send('Password reset email sent.');
+            return res.status(200).json({ message: 'Password reset email sent.' });
         });
     });
 }
 
 exports.passwordTokenPage = async (req, res) => {
     const token = req.query.token;
-    if(!token) return res.status(400).send('Token required.');
+    if(!token) return res.status(400).json({ error: 'Token required.' });
     return res.status(200).json({ message: "Put this request: /auth/reset-password and put this token in this request", token: token});
 }
 
 exports.passwordResetConfirm = async (req, res) => {
     const { token, password } = req.body;
     if (!token || !password) {
-        return res.status(400).send('Token and password are required.');
+        return res.status(400).json({ error: 'Token and password are required.' });
     }
     
     try {
         userModel.findByResetToken(token, async (err, user) => {
-            if (err) return res.status(500).send('Database error.');
-            if (!user) return res.status(400).send('Invalid token.');
-            
+            if (err) return res.status(500).json({ error: 'Database error.' });
+            if (!user) return res.status(400).json({ error: 'Invalid token.' });
+
             if (new Date() > new Date(user.password_reset_token_expiration)) {
                 userModel.updateUser(user.id, {
                     password_reset_token: null,
                     password_reset_token_expiration: null
                 }, () => {});
-                
-                return res.status(400).send('Token has expired. Please request a new password reset.');
+
+                return res.status(400).json({ error: 'Token has expired. Please request a new password reset.' });
             }
 
             try {
@@ -194,66 +194,73 @@ exports.passwordResetConfirm = async (req, res) => {
                     password_reset_token: null,
                     password_reset_token_expiration: null
                 }, (err) => {
-                    if (err) return res.status(500).send('Failed to reset password.');
-                    return res.status(200).send('Password has been reset successfully.');
+                    if (err) return res.status(500).json({ error: 'Failed to reset password.' });
+                    return res.status(200).json({ message: 'Password has been reset successfully.' });
                 });
             } catch (hashError) {
                 console.error('Password hashing error:', hashError);
-                return res.status(500).send('Failed to process password.');
+                return res.status(500).json({ error: 'Failed to process password.' });
             }
         });
     } catch (error) {
         console.error('Password reset confirm error:', error);
-        return res.status(500).send('Server error.');
+        return res.status(500).json({ error: 'Server error.' });
     }
 };
 
 exports.deleteUser = async (req, res) => {
-    const userId = req.params.id;
+    const userId = req.params.user_id;
     try {
-        userModel.deleteUser(userId, (err) =>{
-            if (err) return res.status(500).send('Failed to delete user.');
-        return res.status(200).send('User deleted successfully.');
+        userModel.findById(userId, (err, user) => {
+            if(err) {
+                console.error('Error finding user:', err);
+                return res.status(500).json({ error: 'Internal server error' });
+            }
+            if(!user) return res.status(404).json({ error: 'User not found' });
+
+            userModel.deleteUser(userId, (err) =>{
+                if (err) return res.status(500).json({ error: 'Failed to delete user.' });
+                return res.status(200).json({ message: 'User deleted successfully.' });
+            });
         });
     } catch (error) {
         console.error('Delete user error:', error);
-        return res.status(500).send('Server error.');
+        return res.status(500).json({ error: 'Server error.' });
     }
 };
 
 exports.updateUserRole = async (req, res) => {
-    const userId = req.params.id;
+    const userId = req.params.user_id;
     const { role } = req.body;
-    if (!['user', 'admin'].includes(role)) return res.status(400).send('Invalid role');
+    if (!['user', 'admin'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
 
     try {
         userModel.findById(userId, (err, user) => {
-            if (err) return res.status(500).send('Database error.');
-            if (!user) return res.status(404).send('User not found.');
+            if (err) return res.status(500).json({ error: 'Database error.' });
+            if (!user) return res.status(404).json({ error: 'User not found.' });
             userModel.updateUser(userId, { role: role }, (err) => {
-                if (err) return res.status(500).send('Failed to update user role.');
-                return res.status(200).send('User role updated successfully.');
+                if (err) return res.status(500).json({ error: 'Failed to update user role.' });
+                return res.status(200).json({ message: 'User role updated successfully.' });
             });
         });
     } catch (error) {
         console.error('Update user role error:', error);
-        return res.status(500).send('Server error.');
+        return res.status(500).json({ error: 'Server error.' });
     }
 }
 
 exports.uploadAvatar = async (req, res) => {
-    if (!req.file) return res.status(400).send('No file uploaded');
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     const filePath = req.file.path;
     
     try {
-        userModel.updateUser(req.session.user.id, { profile_picture: filePath }, (err) => {
-            if (err) return res.status(500).send('Database error.');
-            if (!user) return res.status(404).send('User not found');
-            res.status(200).send({ message: 'Avatar updated successfully', path: filePath });
+        userModel.updateUser(req.session.user.id, { profile_picture: filePath }, (err, results) => {
+            if (err) return res.status(500).json({ error: 'Database error.' });
+            res.status(200).json({ message: 'Avatar updated successfully', path: filePath });
         });
     } catch (error) {
         console.error('Upload avatar error:', error);
-        return res.status(500).send('Server error.');
+        return res.status(500).json({ error: 'Server error.' });
     }
 }
 
@@ -262,13 +269,13 @@ exports.getAvatar = async (req, res) => {
 
     try {
         userModel.findById(userId, (err, user) => {
-            if (err) return res.status(500).send('Database error.');
-            if (!user) return res.status(404).send('User not found');
-            res.status(200).send({imagePath: user.profile_picture});
+            if (err) return res.status(500).json({ error: 'Database error.' });
+            if (!user) return res.status(404).json({ error: 'User not found.' });
+            res.status(200).json({ imagePath: user.profile_picture });
         });
     } catch (error) {
         console.error('Upload avatar error:', error);
-        return res.status(500).send('Server error.');
+        return res.status(500).json({ error: 'Server error.' });
     }
 }
 

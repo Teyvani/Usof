@@ -1,5 +1,7 @@
 function emptyBody(req, res, next) {
-    if (req.body === undefined) { return res.status(400).json({ error: 'Request body cannot be empty for POST and PATCH' }); }
+    if (!req.body || Object.keys(req.body).length === 0) {
+        return res.status(400).json({ error: 'Request body cannot be empty' });
+    }
 
     next();
 }
@@ -22,17 +24,19 @@ function createPost(req, res, next){
         return res.status(400).json({ error: 'Post content cannot exceed 10,000 characters' });
     }
     if (categories) {
-        if (!Array.isArray(categories)) {
-            return res.status(400).json({ error: 'Categories must be an array' });
+        let categoryArray;
+        if (typeof categories === 'string') {
+            categoryArray = categories.split(',').map(id => parseInt(id.trim()));
+        } else if (Array.isArray(categories)) {
+            categoryArray = categories;
+        } else {
+            return res.status(400).json({ error: 'Categories must be an array or comma-separated string' });
         }
-        if (categories.length === 0) {
-            return res.status(400).json({ error: 'At least one category is required if categories are provided' });
-        }
-        if (categories.length > 5) {
-            return res.status(400).json({ error: 'Maximum 5 categories allowed per post' });
-        }
-        for (let categoryId of categories) {
-            if (!Number.isInteger(parseInt(categoryId)) || parseInt(categoryId) <= 0) {
+        if (categoryArray.length === 0) return res.status(400).json({ error: 'At least one category is required if categories are provided' });
+        if (categoryArray.length > 5) return res.status(400).json({ error: 'Maximum 5 categories allowed per post' });
+        
+        for (let categoryId of categoryArray) {
+            if (isNaN(categoryId) || categoryId <= 0) {
                 return res.status(400).json({ error: 'Invalid category ID provided' });
             }
         }

@@ -15,14 +15,41 @@ const validMiddleware = require('../middleware/validation');
 const middleChecker = require('../middleware/middleChecker');
 
 const multer = require('multer');
-const upload = multer({ dest: 'uploads/'} );
+const path = require('path');
+const fs = require('fs');
+
+if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
+
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'uploads/')
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = file.originalname.split('.').pop();
+        cb(null, file.fieldname + '-' + uniqueSuffix + '.' + ext);
+    }
+});
+
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: function (req, file, cb) {
+        const allowedTypes = /jpeg|jpg|png|gif|webp/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+    
+        if (mimetype && extname) return cb(null, true);
+        else { cb(new Error('Only image files are allowed')); }
+    }
+});
 
 /* Authentication Routes */
 router.post('/auth/register', mainChecker.emptyBody, authMiddleware.registerErrorHandler, userController.register);
 router.get('/auth/confirm-email', userController.confirmEmail);
 router.post('/auth/send-email-token-again', mainChecker.emptyBody, userController.sendEmailTokenAgain);
 router.post('/auth/login', mainChecker.emptyBody, authMiddleware.loginErrorHandler, userController.login);
-router.post('/auth/logout', mainChecker.emptyBody, validMiddleware.isLoggedIn, userController.logout);
+router.post('/auth/logout', validMiddleware.isLoggedIn, userController.logout);
 router.post('/auth/reset-password-request', mainChecker.emptyBody, userController.passwordResetRequest);
 router.post('/auth/reset-password', mainChecker.emptyBody, authMiddleware.passwordResetErrorHandler, userController.passwordResetConfirm);
 router.get('/auth/reset-password', userController.passwordTokenPage);
@@ -31,7 +58,7 @@ router.get('/auth/reset-password', userController.passwordTokenPage);
 router.get('/users', userController.getAllUsers);
 router.get('/users/:user_id', userController.getUserById);
 router.post('/users', mainChecker.emptyBody, validMiddleware.isLoggedIn, validMiddleware.isAdmin, userController.createUser);
-router.patch('/users/avatar', mainChecker.emptyBody, validMiddleware.isLoggedIn, upload.single('avatar'), userController.uploadAvatar);
+router.patch('/users/avatar', validMiddleware.isLoggedIn, upload.single('avatar'), userController.uploadAvatar);
 router.patch('/users/:user_id', mainChecker.emptyBody, validMiddleware.isLoggedIn, userController.updateUser);
 router.delete('/users/:user_id', validMiddleware.isLoggedIn, validMiddleware.isAdmin, userController.deleteUser);
 router.patch('/users/:user_id/role', mainChecker.emptyBody, validMiddleware.isLoggedIn, validMiddleware.isAdmin, userController.updateUserRole);
@@ -56,7 +83,7 @@ router.delete('/comments/:comment_id/like', validMiddleware.isLoggedIn, likeCont
 /*Posts Routes*/
 router.get('/posts', postController.getAllPosts);
 router.get('/posts/:post_id', postController.getPostById);
-router.post('/posts', mainChecker.emptyBody, validMiddleware.isLoggedIn, mainChecker.createPost, upload.array('postImages', 10), postController.createPost);
+router.post('/posts', validMiddleware.isLoggedIn, upload.array('postImages', 10), mainChecker.emptyBody, mainChecker.createPost, postController.createPost);
 router.patch('/posts/:post_id', mainChecker.emptyBody, validMiddleware.isLoggedIn, mainChecker.updatePost, postController.updatePost);
 router.delete('/posts/:post_id', validMiddleware.isLoggedIn, postController.deletePost);
 router.get('/posts/:post_id/comments', commentController.getPostComments);
@@ -99,8 +126,5 @@ router.get('/reports/:report_id', validMiddleware.isLoggedIn, validMiddleware.is
 router.post('/reports', mainChecker.emptyBody, validMiddleware.isLoggedIn, middleChecker.createReport, reportController.createReport);
 router.patch('/reports/:report_id/process', mainChecker.emptyBody, validMiddleware.isLoggedIn, validMiddleware.isAdmin, mainChecker.validateId, middleChecker.processReport, reportController.processReport);
 router.delete('/reports/:report_id', validMiddleware.isLoggedIn, mainChecker.validateId, reportController.deleteReport);
-
-/* TO-DO:
-Posibility for a user to see only theirs posts including innactive */
 
 module.exports = router;

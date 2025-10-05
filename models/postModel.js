@@ -8,7 +8,7 @@ function createPost({ author_id, title, content }, callback){
 }
 
 function getAllPosts(filters = {}, callback){
-    const sql = `
+    let sql = `
         SELECT p.*, u.login as author_login, u.full_name as author_name,
                GROUP_CONCAT(DISTINCT c.title) AS categories,
                GROUP_CONCAT(DISTINCT c.id) AS category_ids,
@@ -19,56 +19,58 @@ function getAllPosts(filters = {}, callback){
         LEFT JOIN categories c ON pc.category_id = c.id
         LEFT JOIN post_images i ON p.id = i.post_id
         WHERE 1=1`;
-    
     const params = [];
-        if (filters.status && filters.status !== 'all') {
-            sql += ' AND p.status = ?';
-            params.push(filters.status);
-        }
-        if (filters.categories && filters.categories.length > 0) {
-            const placeholders = filters.categories.map(() => '?').join(',');
-            sql += ` AND p.id IN (
-                SELECT DISTINCT pc.post_id 
-                FROM post_categories pc 
-                WHERE pc.category_id IN (${placeholders})
-            )`;
-            params.push(...filters.categories);
-        }
-        if (filters.dateFrom) {
-            sql += ' AND p.published_at >= ?';
-            params.push(filters.dateFrom);
-        }
-        if (filters.dateTo) {
-            sql += ' AND p.published_at <= ?';
-            params.push(filters.dateTo);
-        }
-        sql += ' GROUP BY p.id';
 
-        if (filters.sortBy === 'date') {
-            sql += ' ORDER BY p.published_at DESC';
-        } else {
-            sql += ' ORDER BY p.likes_count DESC, p.published_at DESC'; // Default: sort by likes
+    if (filters.userId) {
+        sql += ' AND (p.status = ? OR (p.status = ? AND p.author_id = ?))';
+        params.push('active', 'inactive', filters.userId);
+    } else if (filters.status && filters.status !== 'all') {
+        sql += ' AND p.status = ?';
+        params.push(filters.status);
+    }
+    
+    if (filters.categories && filters.categories.length > 0) {
+        const placeholders = filters.categories.map(() => '?').join(',');
+        sql += ` AND p.id IN (
+            SELECT DISTINCT pc.post_id 
+            FROM post_categories pc 
+            WHERE pc.category_id IN (${placeholders})
+        )`;
+        params.push(...filters.categories);
+    }
+    if (filters.dateFrom) {
+        sql += ' AND p.published_at >= ?';
+        params.push(filters.dateFrom);
+    }
+    if (filters.dateTo) {
+        sql += ' AND p.published_at <= ?';
+        params.push(filters.dateTo);
+    }   
+    sql += ' GROUP BY p.id';
+    if (filters.sortBy === 'date') {
+        sql += ' ORDER BY p.published_at DESC';
+    } else {
+        sql += ' ORDER BY p.likes_count DESC, p.published_at DESC';
+    }
+    
+    if (filters.limit) {
+        sql += ' LIMIT ?';
+        params.push(parseInt(filters.limit));
+        if (filters.offset) {
+            sql += ' OFFSET ?';
+            params.push(parseInt(filters.offset));
         }
-        
-        if (filters.limit) {
-            sql += ' LIMIT ?';
-            params.push(parseInt(filters.limit));
-            
-            if (filters.offset) {
-                sql += ' OFFSET ?';
-                params.push(parseInt(filters.offset));
-            }
-        }
-        
-        db.query(sql, params, (err, results) => {
-            if (err) return callback(err);
-            results.forEach(r => {
-                r.categories = r.categories ? r.categories.split(',') : [];
-                r.category_ids = r.category_ids ? r.category_ids.split(',').map(id => parseInt(id)) : [];
-                r.images = r.images ? r.images.split(',') : [];
-            });
-            callback(null, results);
+    }
+    
+    db.query(sql, params, (err, results) => {
+        if (err) return callback(err);
+        results.forEach(r => {
+            r.categories = r.categories ? r.categories.split(',') : [];
+            r.category_ids = r.category_ids ? r.category_ids.split(',').map(id => parseInt(id)) : [];
+            r.images = r.images ? r.images.split(',') : [];
         });
+        callback(null, results);
+    });
 }
 
 function getPostByID(id, callback) {

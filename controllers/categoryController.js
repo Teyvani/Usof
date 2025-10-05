@@ -30,15 +30,15 @@ exports.getCategoryById = (req, res) => {
         });
     } catch (error) {
         console.error('Unexpected error fetching category:', error);
-        res.status(500).json({ error: 'Internal srever error' });
+        res.status(500).json({ error: 'Internal server error' });
     }
 };
 
 exports.getCategoryPosts = (req, res) => {
     try {
-        const categoryTitle = req.params.category_title;
+        const categoryId = req.params.category_id;
 
-        categoryModel.getCategoryByTitle(categoryTitle.trim(), (err, category) => {
+        categoryModel.getCategoryById(categoryId, (err, category) => {
             if (err) {
                 console.error('Error fetching category:', err);
                 return res.status(500).json({ error: 'Internal server error' });
@@ -48,7 +48,7 @@ exports.getCategoryPosts = (req, res) => {
             categoryModel.getCategoryPosts(categoryId, (err, posts) => {
                 if (err) {
                     console.error('Error fetching category posts:', err);
-                    return res.status(500).json({ error: 'Internal srever error.' });
+                    return res.status(500).json({ error: 'Internal server error.' });
                 }
 
                 res.json({

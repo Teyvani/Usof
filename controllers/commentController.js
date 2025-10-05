@@ -26,41 +26,45 @@ exports.createComment = (req, res) => {
                     if (!parentComment || parentComment.post_id != postId) {
                         return res.status(404).json({ error: 'Parent comment not found' });
                     }
+
+                    createCommentHelper();
                 });
-            }
+            } else { createCommentHelper(); }
 
-            commentModel.createComment({ post_id: postId, author_id: authorId, content, parent_comment_id}, (err, results) => {
-                if (err) {
-                    console.error('Error creating comment:', err);
-                    return res.status(500).json({ error: 'Internal server error' });
-                }
-
-                const commentId = results.insertId;
-                commentModel.updatePostCommentCount(postId, (err) => {
-                    if (err) console.error('Error updating post comment count:');
-                });
-
-                const notificationModel = require('../models/notificationModel');
-                notificationModel.notifyPostAuthor(postId, authorId, commentId, (err) => {
-                    if (err) console.error('Error notifying post author:', err);
-                });
-
-                notificationModel.notifyPostFollowers(postId, authorId, commentId, (err) => {
-                    if (err) console.error('Error notifying post followers:', err);
-                });
-
-                commentModel.getCommentById(commentId, (err, newComment) => {
+            function createCommentHelper() {
+                commentModel.createComment({ post_id: postId, author_id: authorId, content, parent_comment_id}, (err, results) => {
                     if (err) {
-                        console.error('Error fetching new comment:', err);
+                        console.error('Error creating comment:', err);
                         return res.status(500).json({ error: 'Internal server error' });
                     }
 
-                    res.status(201).json({
-                        message: 'Comment created successfully',
-                        comment: newComment
+                    const commentId = results.insertId;
+                    commentModel.updatePostCommentCount(postId, (err) => {
+                        if (err) console.error('Error updating post comment count:');
+                    });
+
+                    const notificationModel = require('../models/notificationModel');
+                    notificationModel.notifyPostAuthor(postId, authorId, commentId, (err) => {
+                        if (err) console.error('Error notifying post author:', err);
+                    });
+
+                    notificationModel.notifyPostFollowers(postId, authorId, commentId, (err) => {
+                        if (err) console.error('Error notifying post followers:', err);
+                    });
+
+                    commentModel.getCommentById(commentId, (err, newComment) => {
+                        if (err) {
+                            console.error('Error fetching new comment:', err);
+                            return res.status(500).json({ error: 'Internal server error' });
+                        }
+
+                        res.status(201).json({
+                            message: 'Comment created successfully',
+                            comment: newComment
+                        });
                     });
                 });
-            });
+            }
         });
     } catch (error) {
         console.error('Error creating comment:', error);
@@ -73,13 +77,21 @@ exports.getPostComments = (req, res) => {
     try {
         const postId = req.params.post_id;
 
-        commentModel.getPostComments(postId, (err, comments) => {
+        postModel.getPostByID(postId, (err, post) => {
             if (err) {
-                console.error('Error fetching comments:', err);
+                console.error('Error fetching post:', err);
                 return res.status(500).json({ error: 'Internal server error' });
             }
+            if (!post) { return res.status(404).json({ error: 'Post not found' }); }
 
-            res.json({ comments });
+            commentModel.getPostComments(postId, (err, comments) => {
+                if (err) {
+                    console.error('Error fetching comments:', err);
+                    return res.status(500).json({ error: 'Internal server error' });
+                }
+
+                res.json({ comments });
+            });
         });
     } catch (error) {
         console.error('Error fetching comments:', error);
@@ -124,10 +136,10 @@ exports.updateComment = (req, res) => {
             const updateFields = {};
             if (userRole === 'admin') {
                 if (status !== undefined) { updateFields.status = status; }
-                if (content !== undefined && comment.authorId !== userId) {
+                if (content !== undefined && comment.author_id !== userId) {
                     return res.status(403).json({ error: 'Admins are only allowed to change status of the comment, not its content' });
                 }
-            } else if (comment.authorId === userId) {
+            } else if (comment.author_id === userId) {
                 if (content !== undefined) { updateFields.content = content; }
             } else {
                 return res.status(403).json({ error: 'You can only edit your own comments' });
@@ -148,7 +160,7 @@ exports.updateComment = (req, res) => {
                     });
                 }
 
-                commentModel.getCommentById(comment, (err, updatedComment) => {
+                commentModel.getCommentById(commentId, (err, updatedComment) => {
                     if (err) {
                         console.error('Error fetching updated comment:', err);
                         return res.status(500).json({ error: 'Internal server error' });

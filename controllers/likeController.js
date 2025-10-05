@@ -18,6 +18,7 @@ exports.addPostLike = (req, res) => {
             }
             if (!post) { return res.status(404).json({ error: 'Post not found' }); }
             if (post.status !== 'active') { return res.status(403).json({ error: 'Cannot like inactive posts' }); }
+            if (post.author_id === authorId) { return res.status(403).json({ error: 'You cannot like or dislike your own post' }); }
 
             likeModel.addLike({ author_id: authorId, target_type: 'post', target_id: postId, type }, (err, result) => {
                 if (err) {
@@ -34,14 +35,14 @@ exports.addPostLike = (req, res) => {
                 });
 
                 res.json({
-                    message: `Post ${result.action} successfully`,
+                    message: `Like ${result.action} successfully`,
                     action: result.action,
                     type
                 });
             });
         });
     } catch (error) {
-        console.error('Unexpected error adding post like:', error);
+        console.error('Error adding post like:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
@@ -63,6 +64,7 @@ exports.addCommentLike = (req, res) => {
             }
             if (!comment) { return res.status(404).json({ error: 'Comment not found' }); }
             if (comment.status !== 'active') { return res.status(403).json({ error: 'Cannot like inactive comments' }); }
+            if (comment.author_id === authorId) { return res.status(403).json({ error: 'You cannot like or dislike your own comment' }); }
 
             likeModel.addLike({author_id: authorId, target_type: 'comment', target_id: commentId, type }, (err, result) => {
                 if (err) {

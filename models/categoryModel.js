@@ -78,4 +78,18 @@ function getCategoryPosts(categoryId, callback){
     });
 }
 
-module.exports = {getAllCategories, getCategoryById, getCategoryByTitle, createCategory, updateCategory, deleteCategory, getCategoryPosts};
+function validateCategoriesExist(categoryIds, callback) {
+    if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+        return callback(null, true);
+    }
+    const placeholders = categoryIds.map(() => '?').join(',');
+    const sql = `SELECT COUNT(*) as count FROM categories WHERE id IN (${placeholders})`;
+    
+    db.query(sql, categoryIds, (err, results) => {
+        if (err) return callback(err);
+        const allExist = results[0].count === categoryIds.length;
+        callback(null, allExist);
+    });
+}
+
+module.exports = {getAllCategories, getCategoryById, getCategoryByTitle, createCategory, updateCategory, deleteCategory, getCategoryPosts, validateCategoriesExist};

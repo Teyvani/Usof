@@ -146,7 +146,7 @@ exports.processReport = (req, res) => {
                         }
                         updateReportAndNotify();
                     });
-                } else if (action === 'warned') updateReportAndNotify();
+                } else if (action === 'warned') { updateReportAndNotify(); }
             }
 
             function updateReportAndNotify() {
