@@ -1,5 +1,5 @@
 /*Don't forget to:
-mysql -u root -p < usof_db.sql | перший запуск
+mysql -u root -p < usof_db.sql | first time only (Running the script second time will drop the database and create a new one)
 mysql -u admin -P 3306 -padminsecurepass
 npm install
 npm start*/
