@@ -1566,7 +1566,7 @@ Update report status
 | View active posts | ✅ | ✅ | ✅ |
 | View inactive posts | Own only | ✅ | ❌ |
 | Create post | ✅ | ✅ | ❌ |
-| Edit post | Own only | ✅ | ❌ |
+| Edit post | Own only | ❌ | ❌ |
 | Delete post | Own only | ✅ | ❌ |
 | Change post status | ❌ | ✅ | ❌ |
 | Create comment | ✅ | ✅ | ❌ |
