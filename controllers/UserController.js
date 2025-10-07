@@ -292,7 +292,6 @@ exports.getAllUsers = (req, res) => {
                 login: user.login,
                 full_name: user.full_name,
                 email: user.email,
-                email_confirmed: user.email_confirmed,
                 profile_picture: user.profile_picture,
                 rating: user.rating,
                 role: user.role,
@@ -476,7 +475,7 @@ exports.updateUser = (req, res) => {
                     }
 
                     res.json({
-                        message: 'User updated successfully. Please confirm your new email address.',
+                        message: 'User updated successfully. Please confirm your new email address if you changed it.',
                         user: {
                             id: updatedUser.id,
                             login: updatedUser.login,

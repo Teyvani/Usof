@@ -152,15 +152,15 @@ CREATE TABLE IF NOT EXISTS  notifications (
 -- ===================================================================
 All user passwords: "Password123"*/
 
-INSERT INTO users (login, full_name, password, email, email_confirmed, profile_picture, rating, role, created_at) VALUES
-('admin', 'Admin User', '$2b$10$rT5qzQXJ8h8D9CfKvxN0eeYfJ1WqQXYJYqvQf1ZqKzQXYJYqvQf1Z', 'admin@usof.com', TRUE, 'uploads/profiles/default_avatar.jpg', 0, 'admin', '2025-01-10 10:00:00'),
-('jovannni_ay', 'Jovanni Ay', '$2b$10$rT5qzQXJ8h8D9CfKvxN0eeYfJ1WqQXYJYqvQf1ZqKzQXYJYqvQf1Z', 'john@example.com', TRUE, 'uploads/profiles/default_avatar.jpg', 10, 'user', '2025-01-11 09:30:00'),
-('jane_smith', 'Jane Smith', '$2b$10$rT5qzQXJ8h8D9CfKvxN0eeYfJ1WqQXYJYqvQf1ZqKzQXYJYqvQf1Z', 'jane@example.com', TRUE, 'uploads/profiles/default_avatar.jpg', 8, 'user', '2025-01-11 11:15:00'),
-('bob_wilson', 'Bob Wilson', '$2b$10$rT5qzQXJ8h8D9CfKvxN0eeYfJ1WqQXYJYqvQf1ZqKzQXYJYqvQf1Z', 'bob@example.com', TRUE, 'uploads/profiles/default_avatar.jpg', 8, 'user', '2025-01-12 08:45:00'),
-('alice_brown', 'Alice Brown', '$2b$10$rT5qzQXJ8h8D9CfKvxN0eeYfJ1WqQXYJYqvQf1ZqKzQXYJYqvQf1Z', 'alice@example.com', TRUE, 'uploads/profiles/default_avatar.jpg', 8, 'user', '2025-01-12 14:20:00'),
-('charlie_davis', 'Charlie Davis', '$2b$10$rT5qzQXJ8h8D9CfKvxN0eeYfJ1WqQXYJYqvQf1ZqKzQXYJYqvQf1Z', 'charlie@example.com', TRUE, 'uploads/profiles/default_avatar.jpg', 1, 'user', '2025-01-13 10:30:00'),
-('emma_johnson', 'Emma Johnson', '$2b$10$rT5qzQXJ8h8D9CfKvxN0eeYfJ1WqQXYJYqvQf1ZqKzQXYJYqvQf1Z', 'emma@example.com', TRUE, 'uploads/profiles/default_avatar.jpg', 0, 'user', '2025-01-13 16:45:00'),
-('david_lee', 'David Lee', '$2b$10$rT5qzQXJ8h8D9CfKvxN0eeYfJ1WqQXYJYqvQf1ZqKzQXYJYqvQf1Z', 'david@example.com', FALSE, 'uploads/profiles/default_avatar.jpg', 0, 'user', '2025-01-14 12:00:00');
+INSERT INTO users (login, full_name, password, email, email_confirmed, rating, role, created_at) VALUES
+('admin', 'Admin User', '$2b$10$rT5qzQXJ8h8D9CfKvxN0eeYfJ1WqQXYJYqvQf1ZqKzQXYJYqvQf1Z', 'admin@usof.com', TRUE, 0, 'admin', '2025-01-10 10:00:00'),
+('jovannni_ay', 'Jovanni Ay', '$2b$10$rT5qzQXJ8h8D9CfKvxN0eeYfJ1WqQXYJYqvQf1ZqKzQXYJYqvQf1Z', 'john@example.com', TRUE, 10, 'user', '2025-01-11 09:30:00'),
+('jane_smith', 'Jane Smith', '$2b$10$rT5qzQXJ8h8D9CfKvxN0eeYfJ1WqQXYJYqvQf1ZqKzQXYJYqvQf1Z', 'jane@example.com', TRUE, 8, 'user', '2025-01-11 11:15:00'),
+('bob_wilson', 'Bob Wilson', '$2b$10$rT5qzQXJ8h8D9CfKvxN0eeYfJ1WqQXYJYqvQf1ZqKzQXYJYqvQf1Z', 'bob@example.com', TRUE, 8, 'user', '2025-01-12 08:45:00'),
+('alice_brown', 'Alice Brown', '$2b$10$rT5qzQXJ8h8D9CfKvxN0eeYfJ1WqQXYJYqvQf1ZqKzQXYJYqvQf1Z', 'alice@example.com', TRUE, 8, 'user', '2025-01-12 14:20:00'),
+('charlie_davis', 'Charlie Davis', '$2b$10$rT5qzQXJ8h8D9CfKvxN0eeYfJ1WqQXYJYqvQf1ZqKzQXYJYqvQf1Z', 'charlie@example.com', TRUE, 1, 'user', '2025-01-13 10:30:00'),
+('emma_johnson', 'Emma Johnson', '$2b$10$rT5qzQXJ8h8D9CfKvxN0eeYfJ1WqQXYJYqvQf1ZqKzQXYJYqvQf1Z', 'emma@example.com', TRUE, 0, 'user', '2025-01-13 16:45:00'),
+('david_lee', 'David Lee', '$2b$10$rT5qzQXJ8h8D9CfKvxN0eeYfJ1WqQXYJYqvQf1ZqKzQXYJYqvQf1Z', 'david@example.com', FALSE, 0, 'user', '2025-01-14 12:00:00');
 
 INSERT INTO categories (title) VALUES
 ('JavaScript'),
