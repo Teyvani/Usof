@@ -16,7 +16,7 @@ Usof — a backend API for question and answer platform similar to StackOverflow
 ### Installation Steps
 1. **Clone the repository**
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/Teyvani/Usof.git
 cd usof-backend
 ```
 
@@ -432,4 +432,568 @@ Authorization: Session cookie required
 2. Check if user with given id exists
 3. Delete user from database
 4. Return success message
+---
+### Category Module
+#### Get all categories
+```htttp
+GET /api/categories
+```
+**Response:** 200 OK
+```json
+{
+  "categories": [
+    {
+      "id": 10,
+      "title": "API Development"
+    },
+    {
+      "id": 7,
+      "title": "CSS"
+    }
+  ]
+}
+```
+**Algorithm:**
+1. Return array of categories
+---
+#### Get specific category
+```http
+GET /api/categories/:category_id
+```
+**Response:** 200 OK
+```json
+{
+  "category": {
+    "id": 1,
+    "title": "JavaScript"
+  }
+}
+```
+**Algorithm:**
+1. Check if category with given id exists
+2. Return category
+---
+#### Get category posts
+```http
+GET /api/categories/:category_id/posts
+```
+**Response:** 200 OK
+```json
+{
+  "category": {
+  "id": 5,
+    "title": "React"
+  },
+  "posts": [
+    {
+      "id": 2,
+      "author_id": 3,
+      "title": "Best practices for React hooks?",
+      "content": "I am new to React hooks and wondering what are the best practices when using useState and useEffect? Should I always use useCallback? Any tips would be appreciated!",
+      "published_at": "2025-01-14T09:30:00.000Z",
+      "updated_at": "2025-10-06T14:31:14.000Z",
+      "status": "active",
+      "is_locked": 0,
+      "likes_count": 6,
+      "comments_count": 5,
+      "author_login": "jane_smith",
+      "author_name": "Jane Smith",
+      "categories": [
+        "React"
+      ],
+      "images": []
+    }
+  ]
+}
+```
+**Algorithm:**
+1. Check if category with given id exists
+2. Return category and posts that related to it
+---
+#### Create category (Admin only)
+```http
+POST /api/categories
+Content-Type: application/json
+Authorization: Session cookie required
+{
+  "title": "TypeScript"
+}
+```
+**Response** 201 OK
+```json
+{
+  "message": "Category created successfully",
+  "category": {
+    "id": 11,
+    "title": "TypeScript"
+  }
+}
+```
+**Algorithm**
+1. Check if user logged in and has admin privileges
+2. Check if category with this title don't exists yet
+3. Create new category
+4. Return success message and created category
+---
+#### Update category (Admin only)
+```http
+PATCH /api/categories/:category_id
+Content-Type: application/json
+Authorization: Session cookie required
+{
+  "title": "JavaScript Advanced"
+}
+```
+**Response** 200 OK
+```json
+{
+  "message": "Category updated successfully",
+  "category": {
+    "id": 11,
+    "title": "JavaScript Advanced"
+  }
+}
+```
+**Algorithm**
+1. Check if user logged in and has admin privileges
+2. Check if category with given id exists
+3. Check if category with title on which we want to change doesn't exists yet
+4. Update category title
+5. Return success message and category
+---
+#### Delete category (Admin only)
+```http
+DELETE /api/categories/:category_id
+Authorization: Session cookie required
+```
+**Response** 200 OK
+```json
+{
+  "message": "Category deleted successfully"
+}
+```
+**Algorithm**
+1. Check if user logged in and has admin privileges
+2. Check if category with given id exists
+3. Delete category from the database
+4. Return success message
+---
+### Post module
+#### Get All Posts
+```http
+GET /api/posts
+GET /api/posts?sort_by=date&categories=1,3&limit=10&offset=0
+```
+**Query Parameters:**
+- `sort_by`: `likes` (default) or `date`
+- `categories`: comma-separated category IDs
+- `status`: `active`, `inactive` (if user is author, or automatically change on `active`), or `all` (admin only)
+- `date_from`: filter from date (YYYY-MM-DD)
+- `date_to`: filter to date (YYYY-MM-DD)
+- `limit`: pagination limit (default: 20)
+- `offset`: pagination offset (default: 0)
+**Response** 200 OK
+```json
+{
+  "posts": [
+    {
+      "id": 1,
+      "author_id": 2,
+      "title": "How to fix MySQL connection error?",
+      "content": "I am getting a connection refused error...",
+      "published_at": "2025-01-14T08:00:00.000Z",
+      "status": "active",
+      "is_locked": false,
+      "likes_count": 5,
+      "comments_count": 3,
+      "author_login": "test_user",
+      "author_name": "Test User",
+      "categories": ["MySQL", "Node.js"],
+      "category_ids": [3, 4],
+      "images": ["uploads/postImages-123.jpg"]
+    }
+  ],
+  "pagination": {
+    "limit": 20,
+    "offset": 0,
+    "hasMore": false
+  }
+}
+```
+**Algorithm:**
+1. Parse query parameters for filters
+2. Check user role: guests see active only, users see active + own inactive, admins see all
+3. Build SQL query with filters (categories, dates, status)
+4. Apply sorting (likes or date)
+5. Apply pagination
+6. Return posts with pagination info
+---
+#### Get Specific Post
+```http
+GET /api/posts/:post_id
+```
+**Response:** 200 OK
+```json
+{
+  "post": {
+    "id": 1,
+    "author_id": 2,
+    "title": "How to fix MySQL connection error?",
+    "content": "I am getting a connection refused error...",
+    "published_at": "2025-01-14T08:00:00.000Z",
+    "updated_at": "2025-01-14T08:00:00.000Z",
+    "status": "active",
+    "is_locked": false,
+    "likes_count": 5,
+    "comments_count": 3,
+    "author_login": "test_user",
+    "author_name": "Test User",
+    "author_avatar": "uploads/avatar-123.jpg",
+    "categories": ["MySQL", "Node.js"],
+    "images": []
+  }
+}
+```
+**Algorithm:**
+1. Check if post exists
+2. Check permissions (inactive posts visible only to author and admins)
+3. Return post details
+---
+#### Create Post
+```http
+POST /api/posts
+Content-Type: multipart/form-data
+Authorization: Session cookie required
+
+title: "My New Question"
+content: "How do I implement JWT authentication?"
+categories: 1,3
+postImages: [select up to 10 images]
+```
+**Response:** 201 Created
+```json
+{
+  "message": "Post created successfully",
+  "post": {
+    "id": 15,
+    "author_id": 2,
+    "title": "My New Question",
+    "content": "How do I implement JWT authentication?",
+    "status": "active",
+    "likes_count": 0,
+    "comments_count": 0,
+    "categories": ["JavaScript", "MySQL"],
+    "images": ["uploads/postImages-456.jpg"]
+  }
+}
+```
+**Algorithm:**
+1. Check if user is logged in
+2. Parse categories (handle both array and comma-separated string)
+3. Validate categories exist in database
+4. Create post in database
+5. Link categories to post
+6. Save uploaded images
+7. Return created post
+---
+#### Update Post
+```http
+PATCH /api/posts/:post_id
+Content-Type: application/json
+Authorization: Session cookie required
+{
+  "title": "Updated Title",
+  "content": "Updated content",
+  "categories": [1, 2],
+  "status": "inactive"
+}
+```
+**Response:** 200 OK
+```json
+{
+  "message": "Post updated successfully",
+  "post": { /* updated post object */ }
+}
+```
+**Algorithm:**
+1. Check if post exists
+2. Verify permissions (owner or admin)
+3. Validate categories if provided
+4. Users can update title/content, admins can update status
+5. Update post and categories
+6. Return updated post
+---
+#### Delete Post
+```http
+DELETE /api/posts/:post_id
+Authorization: Session cookie required
+```
+**Response:** 200 OK
+```json
+{
+  "message": "Post deleted successfully"
+}
+```
+**Algorithm:**
+1. Check if post exists
+2. Verify permissions (owner or admin)
+3. Delete associated image files
+4. Delete post (CASCADE deletes related records)
+5. Return success message
+---
+#### Get Post Categories
+```http
+GET /api/posts/:post_id/categories
+```
+**Response:** 200 OK
+```json
+{
+  "categories": [
+    { "id": 1, "title": "JavaScript" },
+    { "id": 3, "title": "MySQL" }
+  ]
+}
+```
+**Algorithm:**
+1. Return array of all categories
+---
+#### Get Post Comments
+```http
+GET /api/posts/:post_id/comments
+```
+**Response:** 200 OK
+```json
+{
+  "comments": [
+    {
+      "id": 5,
+      "post_id": 1,
+      "author_id": 3,
+      "content": "Great question!",
+      "author_login": "jane_doe",
+      "published_at": "2025-01-15T12:30:00.000Z",
+      "status": "active",
+      "likes_count": 3,
+      "replies": [
+        {
+          "id": 6,
+          "content": "Thanks!",
+          "author_login": "john_doe",
+          "parent_comment_id": 5,
+          "replies": []
+        }
+      ]
+    }
+  ]
+}
+```
+**Algorithm:**
+1. Check if post exists
+2. Fetch all active comments for post
+3. Organize into threaded structure (comments with replies)
+4. Return nested comment tree
+---
+#### Create Comment
+```http
+POST /api/posts/:post_id/comments
+Content-Type: application/json
+Authorization: Session cookie required
+{
+  "content": "Great answer! Thanks for sharing."
+}
+// OR for reply:
+{
+  "content": "I agree!",
+  "parent_comment_id": 5
+}
+```
+**Response:** 201 Created
+```json
+{
+  "message": "Comment created successfully",
+  "comment": {
+    "id": 18,
+    "post_id": 1,
+    "author_id": 2,
+    "content": "Great answer! Thanks for sharing.",
+    "published_at": "2025-10-07T15:00:00.000Z",
+    "author_login": "john_doe"
+  }
+}
+```
+**Algorithm:**
+1. Check if post exists and is active
+2. Check if post is not locked
+3. If replying, verify parent comment exists
+4. Create comment
+5. Update post comment count
+6. Send notifications to post author and followers
+7. Return created comment
+---
+#### Get Post Likes
+```http
+GET /api/posts/:post_id/like
+```
+**Response:** 200 OK
+```json
+{
+  "likes": [
+    {
+      "id": 10,
+      "author_id": 3,
+      "author_login": "jane_doe",
+      "type": "like",
+      "created_at": "2025-01-15T13:00:00.000Z"
+    }
+  ],
+  "dislikes": [],
+  "total_likes": 15,
+  "total_dislikes": 2,
+  "score": 13
+}
+```
+**Algorithm:**
+1. Return likes array with summary info
+---
+#### Add Like to Post
+```http
+POST /api/posts/:post_id/like
+Content-Type: application/json
+Authorization: Session cookie required
+{
+  "type": "like"
+}
+// OR
+{
+  "type": "dislike"
+}
+```
+**Response:** 200 OK
+```json
+{
+  "message": "Post created successfully",
+  "action": "created",
+  "type": "like"
+}
+```
+**Algorithm (Toggle Behavior):**
+1. Check if post exists and is active
+2. Check if user already liked/disliked:
+   - Same type → Remove it (toggle off)
+   - Different type → Update it (like ↔ dislike)
+   - No existing → Create new
+3. Update post like count
+4. Recalculate author's rating
+5. Return action performed
+---
+#### Delete Post Like
+```http
+DELETE /api/posts/:post_id/like
+Authorization: Session cookie required
+```
+**Response:** 200 OK
+```json
+{
+  "message": "Like removed successfully"
+}
+```
+---
+### Comment Module
+#### Get Specific Comment
+```http
+GET /api/comments/:comment_id
+```
+**Response:** 200 OK
+```json
+{
+  "comment": {
+    "id": 1,
+    "post_id": 1,
+    "author_id": 3,
+    "content": "Check if MySQL service is running...",
+    "published_at": "2025-01-14T08:15:00.000Z",
+    "status": "active",
+    "likes_count": 2,
+    "author_login": "jane_smith",
+    "author_name": "Jane Smith"
+  }
+}
+```
+---
+#### Update Comment
+```http
+PATCH /api/comments/:comment_id
+Content-Type: application/json
+Authorization: Session cookie required
+// As user (owner):
+{
+  "content": "Updated comment text"
+}
+// As admin:
+{
+  "status": "inactive"
+}
+```
+**Response:** 200 OK
+```json
+{
+  "message": "Comment updated successfully",
+  "comment": { /* updated comment */ }
+}
+```
+**Algorithm:**
+1. Check if comment exists
+2. Users can update their own content
+3. Admins can change status (but not content)
+4. Update comment
+5. If status changed, update post comment count
+6. Return updated comment
+---
+#### Delete Comment
+```http
+DELETE /api/comments/:comment_id
+Authorization: Session cookie required
+```
+**Response:** 200 OK
+```json
+{
+  "message": "Comment deleted successfully"
+}
+```
+**Algorithm:**
+1. Check if comment exists
+2. Verify permissions (owner or admin)
+3. Delete comment
+4. Update post comment count
+5. Return success message
+---
+#### Get Comment Likes
+```http
+GET /api/comments/:comment_id/like
+```
+**Response:** 200 OK (same format as post likes)
+---
+#### Add Like to Comment
+```http
+POST /api/comments/:comment_id/like
+Content-Type: application/json
+Authorization: Session cookie required
+{
+  "type": "like"
+}
+```
+**Response:** 200 OK
+```json
+{
+  "message": "Comment created successfully",
+  "action": "created",
+  "type": "like"
+}
+```
+---
+#### Delete Comment Like
+```http
+DELETE /api/comments/:comment_id/like
+Authorization: Session cookie required
+```
 ---
