@@ -971,7 +971,9 @@ Authorization: Session cookie required
 ```http
 GET /api/comments/:comment_id/like
 ```
+
 **Response:** 200 OK (same format as post likes)
+
 ---
 #### Add Like to Comment
 ```http
@@ -997,3 +999,672 @@ DELETE /api/comments/:comment_id/like
 Authorization: Session cookie required
 ```
 ---
+### Notification Module
+#### Get User Notifications
+```http
+GET /api/notifications
+Authorization: Session cookie required
+```
+**Response:** 200 OK
+```json
+{
+  "notifications": [
+    {
+      "id": 23,
+      "user_id": 2,
+      "author_id": 3,
+      "author_login": "jane_doe",
+      "message": "New comment on your post: 'How to fix MySQL...'",
+      "target_type": "comment",
+      "target_id": 5,
+      "is_read": false,
+      "created_at": "2025-01-15T14:00:00.000Z"
+    }
+  ]
+}
+```
+**Algorithm:**
+1. Fetch all notifications for logged-in user
+2. Include author info and target details
+3. Return sorted by creation date (newest first)
+---
+#### Get Unread Count
+```http
+GET /api/notifications/unread-count
+Authorization: Session cookie required
+```
+**Response:** 200 OK
+```json
+{
+  "unread_count": 5
+}
+```
+---
+#### Mark Notification as Read
+```http
+PATCH /api/notifications/:notification_id/read
+Authorization: Session cookie required
+```
+**Response:** 200 OK
+```json
+{
+  "message": "Notification marked as read"
+}
+```
+---
+#### Mark All as Read
+```http
+PATCH /api/notifications/mark-all-read
+Authorization: Session cookie required
+```
+**Response:** 200 OK
+```json
+{
+  "message": "All notifications marked as read"
+}
+```
+---
+#### Delete Notification
+```http
+DELETE /api/notifications/:notification_id
+Authorization: Session cookie required
+```
+**Response:** 200 OK
+```json
+{
+  "message": "Notification deleted successfully"
+}
+```
+---
+### Collection Module (Favorites)
+#### Get Public Collections
+```http
+GET /api/collections
+```
+**Response:** 200 OK
+```json
+{
+  "collections": [
+    {
+      "id": 1,
+      "user_id": 2,
+      "title": "My Favorite Solutions",
+      "description": "Posts that helped me",
+      "is_private": false,
+      "owner_login": "john_doe",
+      "posts_count": 5,
+      "created_at": "2025-01-14T10:00:00.000Z"
+    }
+  ]
+}
+```
+---
+#### Get User's Collections
+```http
+GET /api/collections/my
+Authorization: Session cookie required
+```
+**Response:** 200 OK
+```json
+{
+  "collections": [
+    {
+      "id": 1,
+      "user_id": 2,
+      "title": "My Favorites",
+      "is_private": false,
+      "posts_count": 3
+    }
+  ]
+}
+```
+---
+#### Get Specific Collection
+```http
+GET /api/collections/:collection_id
+```
+**Response:** 200 OK
+```json
+{
+  "collection": {
+    "id": 1,
+    "user_id": 2,
+    "title": "My Favorite Solutions",
+    "description": "Posts that helped me solve problems",
+    "is_private": false,
+    "owner_login": "john_doe",
+    "posts_count": 5
+  }
+}
+```
+**Algorithm:**
+1. Check if collection exists
+2. Check access (public or owner)
+3. Return collection
+---
+#### Create Collection
+```http
+POST /api/collections
+Content-Type: application/json
+Authorization: Session cookie required
+{
+  "title": "My Favorites",
+  "description": "Posts I like",
+  "is_private": false
+}
+```
+**Response:** 201 Created
+```json
+{
+  "message": "Collection created successfully",
+  "collection": { /* created collection */ }
+}
+```
+**Algorithm:**
+1. Check if user already has collection with this title
+2. Create collection
+3. Return created collection
+---
+#### Update Collection
+```http
+PATCH /api/collections/:collection_id
+Content-Type: application/json
+Authorization: Session cookie required
+{
+  "title": "Updated Title",
+  "is_private": true
+}
+```
+**Response:** 200 OK
+```json
+{
+  "message": "Collection updated successfully",
+  "collection": { /* updated collection */ }
+}
+```
+---
+#### Delete Collection
+```http
+DELETE /api/collections/:collection_id
+Authorization: Session cookie required
+```
+**Response:** 200 OK
+```json
+{
+  "message": "Collection deleted successfully"
+}
+```
+---
+#### Get Collection Posts
+```http
+GET /api/collections/:collection_id/posts
+```
+**Response:** 200 OK
+```json
+{
+  "collection": { /* collection info */ },
+  "posts": [ /* array of posts */ ]
+}
+```
+---
+#### Add Post to Collection
+```http
+POST /api/collections/:collection_id/posts/:post_id
+Authorization: Session cookie required
+```
+**Response:** 200 OK
+```json
+{
+  "message": "Post added to collection successfully"
+}
+```
+**Algorithm:**
+1. Check collection ownership
+2. Check if post exists and is active
+3. Check if post not already in collection
+4. Add post to collection
+5. Return success message
+---
+#### Remove Post from Collection
+```http
+DELETE /api/collections/:collection_id/posts/:post_id
+Authorization: Session cookie required
+```
+**Response:** 200 OK
+```json
+{
+  "message": "Post removed from collection successfully"
+}
+```
+---
+### Follow Module
+#### Follow Post
+```http
+POST /api/posts/:post_id/follow
+Authorization: Session cookie required
+```
+**Response:** 200 OK
+```json
+{
+  "message": "Post followed successfully"
+}
+```
+**Algorithm:**
+1. Check if post exists and is active
+2. Check user is not post author (can't follow own posts)
+3. Check not already following
+4. Create follow relationship
+5. Return success message
+---
+#### Unfollow Post
+```http
+DELETE /api/posts/:post_id/follow
+Authorization: Session cookie required
+```
+**Response:** 200 OK
+```json
+{
+  "message": "Post unfollowed successfully"
+}
+```
+---
+#### Get Followed Posts
+```http
+GET /api/follow/posts
+Authorization: Session cookie required
+```
+**Response:** 200 OK
+```json
+{
+  "followed_posts": [
+    {
+      "id": 15,
+      "title": "How to fix MySQL connection?",
+      "author_login": "jane_doe",
+      "likes_count": 25,
+      "comments_count": 8,
+      "categories": ["MySQL", "Database"]
+    }
+  ]
+}
+```
+---
+#### Get Post Followers
+```http
+GET /api/posts/:post_id/followers
+```
+**Response:** 200 OK
+```json
+{
+  "post": {
+    "id": 1,
+    "title": "How to fix MySQL connection error?"
+  },
+  "followers": [
+    {
+      "id": 2,
+      "login": "john_doe",
+      "full_name": "John Doe",
+      "profile_picture": "uploads/avatar-123.jpg"
+    }
+  ],
+  "followers_count": 5
+}
+```
+---
+#### Check Follow Status
+```http
+GET /api/posts/:post_id/follow-status
+Authorization: Session cookie required
+```
+**Response:** 200 OK
+```json
+{
+  "is_following": true
+}
+```
+---
+### Report Module
+#### Create Report
+```http
+POST /api/reports
+Content-Type: application/json
+Authorization: Session cookie required
+// Report a post:
+{
+  "post_id": 1,
+  "reason": "This post contains spam"
+}
+// OR report a comment:
+{
+  "comment_id": 2,
+  "reason": "Offensive language"
+}
+```
+**Response:** 201 Created
+```json
+{
+  "message": "Report submitted successfully",
+  "report_id": 10
+}
+```
+**Algorithm:**
+1. Check user hasn't already reported this content
+2. Verify content exists
+3. Check user is not reporting own content
+4. Create report with status 'pending'
+5. Return report ID
+---
+#### Get All Reports (Admin only)
+```http
+GET /api/reports
+GET /api/reports?status=pending
+Authorization: Admin session required
+```
+**Response:** 200 OK
+```json
+{
+  "reports": [
+    {
+      "id": 1,
+      "reporter_id": 3,
+      "reporter_login": "jane_doe",
+      "post_id": 8,
+      "post_title": "Test Post",
+      "reason": "Spam content",
+      "status": "pending",
+      "target_type": "post",
+      "created_at": "2025-10-05T14:30:00.000Z"
+    }
+  ]
+}
+```
+---
+#### Get User's Reports
+```http
+GET /api/reports/my
+Authorization: Session cookie required
+```
+**Response:** 200 OK
+```json
+{
+  "reports": [ /* user's reports */ ]
+}
+```
+---
+#### Get Report Statistics (Admin)
+```http
+GET /api/reports/stats
+Authorization: Admin session required
+```
+**Response:** 200 OK
+```json
+{
+  "stats": {
+    "total_reports": 15,
+    "pending_reports": 5,
+    "reviewed_reports": 3,
+    "resolved_reports": 7
+  }
+}
+```
+---
+#### Get Specific Report (Admin)
+```http
+GET /api/reports/:report_id
+Authorization: Admin session required
+```
+**Response:** 200 OK
+```json
+{
+  "report": {
+    "id": 1,
+    "reporter_login": "jane_doe",
+    "post_id": 8,
+    "post_title": "Test Post",
+    "post_content": "...",
+    "reason": "Spam content",
+    "status": "pending",
+    "target_type": "post"
+  }
+}
+```
+---
+#### Process Report (Admin)
+```http
+PATCH /api/reports/:report_id/process
+Content-Type: application/json
+Authorization: Admin session required
+{
+  "action": "deleted",
+  "message": "Content violates community guidelines"
+}
+```
+**Actions:** `"ignored"`, `"deleted"`, `"warned"`
+**Response:** 200 OK
+```json
+{
+  "message": "Report processed successfully",
+  "action": "deleted",
+  "status": "resolved"
+}
+```
+**Algorithm:**
+1. Check report is pending
+2. Based on action:
+   - **ignored**: Mark as resolved
+   - **deleted**: Set content status to inactive
+   - **warned**: Issue warning (content stays active)
+3. Update report status
+4. Notify reporter about resolution
+5. If deleted/warned - notify content author
+6. Return success message
+---
+#### Delete Report
+```http
+DELETE /api/reports/:report_id
+Authorization: Session cookie required
+```
+**Response:** 200 OK
+```json
+{
+  "message": "Report deleted successfully"
+}
+```
+**Algorithm:**
+1. Check permissions (admin or reporter)
+2. Delete report
+3. Return success message
+---
+## Error Responses
+All endpoints may return these error responses:
+**400 Bad Request**
+```json
+{
+  "error": "Validation error message"
+}
+```
+**401 Unauthorized**
+```json
+{
+  "error": "Log in required."
+}
+```
+**403 Forbidden**
+```json
+{
+  "error": "Access denied."
+}
+```
+**404 Not Found**
+```json
+{
+  "error": "Resource not found"
+}
+```
+**500 Internal Server Error**
+```json
+{
+  "error": "Internal server error"
+}
+```
+---
+## Key Algorithms & Workflows
+### User Rating Calculation
+**Trigger:** When like/dislike is added or removed
+**Flow:**
+```
+Like/Dislike Action
+    ↓
+Update target's likes_count
+    ↓
+Recalculate author's rating
+    ↓
+Sum all likes - all dislikes
+on user's posts & comments
+```
+---
+### Notification System Workflow
+
+**1. Comment Notification:**
+```
+User creates comment
+    ↓
+Insert comment
+    ↓
+Update post comment count
+    ↓
+Notify post author ────┐
+    ↓                  ↓
+Query post followers   Notification created
+    ↓                  in database
+For each follower      ↓
+(except commenter)     User sees notification
+    ↓                  when they log in
+Create notification
+```
+**2. Report Resolution Notification:**
+```
+Admin processes report
+    ↓
+Update content status (if needed)
+    ↓
+Update report status
+    ↓
+├─→ Notify reporter
+└─→ Notify content author (if applicable)
+```
+---
+### Session Management
+- Sessions stored in memory
+- Session duration: 10 minutes
+- Session contains: user ID, login, full_name, role
+---
+### Permission Matrix
+| Action | User | Admin | Guest |
+|--------|------|-------|-------|
+| View active posts | ✅ | ✅ | ✅ |
+| View inactive posts | Own only | ✅ | ❌ |
+| Create post | ✅ | ✅ | ❌ |
+| Edit post | Own only | ✅ | ❌ |
+| Delete post | Own only | ✅ | ❌ |
+| Change post status | ❌ | ✅ | ❌ |
+| Create comment | ✅ | ✅ | ❌ |
+| Edit comment content | Own only | ❌ | ❌ |
+| Change comment status | ❌ | ✅ | ❌ |
+| Like/Dislike | ✅ | ✅ | ❌ |
+| Create category | ❌ | ✅ | ❌ |
+| Process reports | ❌ | ✅ | ❌ |
+---
+## Database Schema Overview
+```
+users
+  ├── posts (1:many)
+  │   ├── post_categories (many:many with categories)
+  │   ├── post_images (1:many)
+  │   ├── comments (1:many)
+  │   ├── likes (1:many)
+  │   ├── follow_posts (many:many with users)
+  │   └── reports (1:many)
+  ├── comments (1:many)
+  │   └── likes (1:many)
+  ├── collections (1:many)
+  │   └── collection_posts (many:many with posts)
+  ├── notifications (1:many)
+  └── reports (1:many)
+```
+---
+## Key Features
+**Complete Authentication System**
+- Email confirmation required
+- Password reset via email tokens
+- Secure session management
+
+**Post Management**
+- Create posts with multiple categories and images
+- Sorting (likes/date) and filtering (categories/date range/status)
+- Users see active posts + own inactive posts
+- Admins see everything
+
+**Comment System**
+- Threaded comments (replies to replies)
+- Active/inactive status management
+- Automatic notifications
+
+**Like/Dislike System**
+- Toggle behavior (click again to remove)
+- Automatic user rating calculation
+- Works on both posts and comments
+
+**Notification System**
+- New comments on followed posts
+- Comments on your posts
+- Report resolutions
+
+**Collections (Favorites)**
+- Organize favorite posts
+- Public/private collections
+- Easy post management
+
+**Follow System**
+- Follow interesting discussions
+- Get notified of updates
+- Track engagement
+
+**Report & Moderation**
+- Report inappropriate content
+- Admin processing tools
+- Automated notifications
+---
+## Used Practices
+- **MVC Pattern**: Clear separation of concerns
+- **SOLID Principles**: Maintainable, extensible code
+- **Role-Based Access Control**: User/Admin permissions
+- **Password Security**: bcrypt hashing with salt
+- **Email Verification**: Nodemailer integration
+- **File Upload**: Multer with validation
+- **Session Management**: Express-session
+- **Error Handling**: Comprehensive error responses
+- **Input Validation**: Server-side validation
+- **SQL Injection Protection**: Parameterized queries
+---
+## Progress record (day by day)
+1. Start of the project. Created MySql scheme.
+1. Started work on registration with email confirmation.
+2. Finished registration with email confirmation. Added posibility to log in and logout
+4. Added posibility to reset password, delete user, send token to the email again and update user role.
+6. Made Post and Category Models and started work on controller and router for them.
+9. Fixed error with wrong saving date in database that caused password to not work.
+9. Update on User control and Main rounter.
+10. Updated router. Finished model and controller for categories
+13. Finished Act Basic.
+15. Almost finished everything.
+17. Fixed some responces and finished debagging.
+18. Added seed data.
+19. Finished writing README.
+---
+## Author
+
+Diana Malashta
+Innovation Campus NTU "KhPI"
+FullStack Track Challenge
